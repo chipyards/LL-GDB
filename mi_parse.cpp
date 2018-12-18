@@ -21,6 +21,8 @@ etats :
  13 : vu '"', attendre char ou '"' ou '\'
  14 : vu '\', attendre char
  15 : vu '"' (fin de valeur) ou fin de conteneur, attendre ',' ou fin de conteneur
+ 70 : vu '~', stream-output, attendre texte ou fin de ligne
+ 74 : vu '\', attendre char ou fin de ligne
 
 N.B. 15 precede 10 sauf au debut du conteneur
 
@@ -38,12 +40,13 @@ valeurs de retour :
 	6 : fin de conteneur racine vide
 	7 : fin de conteneur racine
 
+	8 : fin de console-stream-output
 */
 
 // cette fonction parse un caractere et rend zero sauf si on a une fin de valeur
+// si la valeur de retour est >= 0, le processus peut continuer (e est a jour)
 int mi_parse::proc1char( int c )
 {
-++curchar;
 if	( e < 0 )	// depilage eventuel avant lecture char
 	{
 	if	( stac.size() )
@@ -52,11 +55,9 @@ if	( e < 0 )	// depilage eventuel avant lecture char
 	e = -e;
 	}
 if	( c < ' ' )
-	{
-	if	( c == 10 )
-		curlin++;
-	if	( ( e != 2 ) && ( e != 10 ) && ( e != 15 ) )		// liste des etats gerant eux-memes la fin de ligne
-		return(-6663);		// fin de ligne inattendue
+	{	// ci-dessous: liste des etats gerant eux-memes la fin de ligne
+	if	( ( e != 1 ) && ( e != 2 ) && ( e != 10 ) && ( e != 15 ) && ( e != 70 ) )
+		return(-66631);		// fin de ligne inattendue
 	}
 switch	( e )
 	{
@@ -64,6 +65,11 @@ switch	( e )
 			{
 			e = 2;
 			nam = char(c);	// le '^' est inclus dans le nom de conteneur
+			}
+		else if	( ( c == '~' ) || ( c == '&' ) || ( c == '@' ) )
+			{
+			e = 70;		// raw stream
+			nam = char(c); val = ""; // le nom du stream est simplement ~, & ou @
 			}
 		else if ( c > ' ' )	// accepter les residus de newline
 			{
@@ -75,8 +81,13 @@ switch	( e )
 			e = 10;
 			}
 		else if	( c < ' ' )
+			{
+			e = 1;
 			return( 6 );		// fin de report court, le nom est dans nam
-		else	nam += char(c);		break;
+			}
+		else	{
+			nam += char(c);
+			}			break;
 	case 10: if	( ( c == '{' ) || ( c == '[' ) )
 			{
 			stac.push_back( conteneur( "", c ) );	// debut conteneur anonyme
@@ -95,7 +106,7 @@ switch	( e )
 				e = -1;
 				return( 7 );	// fin de conteneur racine
 				}
-			else	return(-6663);	// fin de ligne inattendue
+			else	return(-66632);	// fin de ligne inattendue
 			}
 		else	{
 			nam = char(c);
@@ -106,7 +117,9 @@ switch	( e )
 			val = "";
 			e = 12;
 			}
-		else	nam += char(c);		break;
+		else	{
+			nam += char(c);
+			}			break;
 	case 12: if	( ( c == '{' ) || ( c == '[' ) )
 			{
 			stac.push_back( conteneur( nam, c ) );	// debut conteneur
@@ -127,7 +140,9 @@ switch	( e )
 			e = 15;
 			return( 1 );		// fin de valeur simple
 			}
-		else	val += char(c);		break;
+		else	{
+			val += char(c);
+			}			break;
 	case 14:	{
 			e = 13;
 			val += char(c);
@@ -150,10 +165,29 @@ switch	( e )
 				e = -1;
 				return( 7 );	// fin de conteneur racine
 				}
-			else	return(-6663);	// fin de ligne inattendue
+			else	return(-66633);	// fin de ligne inattendue
 			}
 		else	return(-6665);		// garbage apres conteneur
 						break;
+	case 70 : if	( c < ' ' )
+			{
+			e = 1;		// rien a depiler
+			return( 8 );	// fin de stream, le contenu est dans val
+			}
+		else if ( c == '\\' )
+			{
+			e = 74;
+			}
+		else if	( c != '"' )
+			{
+			val += char(c);
+			}			break;
+	case 74 : if	( c == 'n' )
+			val += char(10);
+		else if ( c == 't' )
+			val += char(8);
+		else	val += char(c);
+		e = 70;				break;
 	}
 return 0;
 }
