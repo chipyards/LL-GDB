@@ -8,18 +8,27 @@ using namespace std;
 //#define PIPO
 int main( int argc, char ** argv )
 {
+FILE * fil;
 mi_parse lemipa;
 #define mipa (&lemipa)
 char tbuf[1<<18];
 int c, retval;
 unsigned int i, curlin = 1;
 
-while	( fgets( tbuf, sizeof(tbuf), stdin ) )
+if	( argc > 1 )
+	{
+	fil = fopen( argv[1], "r" );
+	if	( fil == NULL )
+		return 1;
+	}
+else	fil = stdin;
+
+while	( fgets( tbuf, sizeof(tbuf), fil ) )
 	{
 	#ifdef PIPO
 	printf("!%s!\n", tbuf );
 	#else
-	mipa->e = 1; i = 0; 
+	mipa->e = 1; i = 0;
 	do	{
 		c = tbuf[i++];
 		if	( i >= sizeof(tbuf) )
@@ -38,6 +47,7 @@ while	( fgets( tbuf, sizeof(tbuf), stdin ) )
 			5 : fin de conteneur anonyme
 			6 : fin de conteneur racine vide
 			7 : fin de conteneur racine
+			8 : fin de stream-output
 		*/
 		switch	( retval )
 			{
@@ -49,7 +59,7 @@ while	( fgets( tbuf, sizeof(tbuf), stdin ) )
 			case 6 : printf("fin report court %s\n", mipa->nam.c_str() ); break;
 			case 7 : printf("fin report %s\n",
 				 mipa->stac.back().nam.c_str() ); break;
-			case 8 : printf("stream %c %s\n", 
+			case 8 : printf("stream %c %s\n",
 				 mipa->nam.c_str()[0], mipa->val.substr(0,72).c_str() ); break;
 			default : if	( retval < 0 )
 					{
@@ -61,6 +71,8 @@ while	( fgets( tbuf, sizeof(tbuf), stdin ) )
 		} while ( c );
 	#endif
 	++curlin;
+	if	( fil != stdin )
+		getchar();
 	}
 
 return 0;

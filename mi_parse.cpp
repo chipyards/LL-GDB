@@ -15,7 +15,7 @@ etats :
 <0 : vu fin de conteneur, depilage immediat requis puis aller en (-e)
  1 : debut de ligne, attendre ^, etc...
  2 : vu ^, attendre texte ou ',' ou fin de ligne
- 10 : a l'interieur d'un conteneur, attendre texte, quoted-string ou autre conteneur
+ 10 : a l'interieur d'un conteneur, attendre texte, quoted-string ou autre conteneur ou fin de conteneur
  11 : vu 1er char d'un nom, attendre la suite ou '='
  12 : vu '=', attendre valeur i.e. " ou conteneur i.e. '[' ou '{'
  13 : vu '"', attendre char ou '"' ou '\'
@@ -40,7 +40,7 @@ valeurs de retour :
 	6 : fin de conteneur racine vide
 	7 : fin de conteneur racine
 
-	8 : fin de console-stream-output
+	8 : fin de stream-output
 */
 
 // cette fonction parse un caractere et rend zero sauf si on a une fin de valeur
@@ -60,13 +60,16 @@ if	( c < ' ' )
 		return(-66631);		// fin de ligne inattendue
 	}
 switch	( e )
-	{
-	case 1:	if	( c == '^' )
+	{		// les conteneurs hierarchises (kinda serialized objects)
+			//     reply           status      exec status      notif
+	case 1:	if	( ( c == '^' ) || ( c == '+' ) || ( c == '*' ) || ( c == '=' ) )
 			{
 			e = 2;
 			nam = char(c);	// le '^' est inclus dans le nom de conteneur
 			}
-		else if	( ( c == '~' ) || ( c == '&' ) || ( c == '@' ) )
+			// les streams 'human readable'
+			//     console		log	   target out	    (gdb) prompt    (echo cmd)
+		else if	( ( c == '~' ) || ( c == '&' ) || ( c == '@' ) || ( c == '(' ) || ( c == '-' ) )
 			{
 			e = 70;		// raw stream
 			nam = char(c); val = ""; // le nom du stream est simplement ~, & ou @
@@ -94,6 +97,13 @@ switch	( e )
 			e = 10;
 			return( 3 );
 			}
+		else if ( ( c == '}' ) || ( c == ']' ) )
+			{		// cet etat -15 sert a differer le depilage du conteneur avant etat 15
+			e = -15; 	// afin que celui-ci puisse etre lu juste apres ce return
+			if	( stac.back().nam.size() )
+				return( 4 );	// fin de conteneur nomme
+			else	return( 5 );	// fin de conteneur anonyme
+			}
 		else if	( c == '"' )
 			{
 			val = ""; nam = "";	// debut de valeur anonyme
@@ -101,7 +111,8 @@ switch	( e )
 			}
 		else if	( c < ' ' )
 			{
-			if	( stac.back().nam[0] == '^' )
+			c = stac.back().nam[0];
+			if	( ( c == '^' ) || ( c == '+' ) || ( c == '*' ) || ( c == '=' ) )
 				{
 				e = -1;
 				return( 7 );	// fin de conteneur racine
@@ -160,7 +171,8 @@ switch	( e )
 			}
 		else if	( c < ' ' )
 			{
-			if	( stac.back().nam[0] == '^' )
+			c = stac.back().nam[0];
+			if	( ( c == '^' ) || ( c == '+' ) || ( c == '*' ) || ( c == '=' ) )
 				{
 				e = -1;
 				return( 7 );	// fin de conteneur racine
