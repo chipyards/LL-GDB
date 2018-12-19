@@ -37,10 +37,11 @@ valeurs de retour :
 	4 : fin de conteneur nomme
 	5 : fin de conteneur anonyme
 
-	6 : fin de conteneur racine vide
-	7 : fin de conteneur racine
+	6 : debut de conteneur report
+	7 : debut et fin de conteneur report vide
+	8 : fin de conteneur report
 
-	8 : fin de stream-output
+	9 : fin de stream-output
 */
 
 // cette fonction parse un caractere et rend zero sauf si on a une fin de valeur
@@ -60,7 +61,7 @@ if	( c < ' ' )
 		return(-66631);		// fin de ligne inattendue
 	}
 switch	( e )
-	{		// les conteneurs hierarchises (kinda serialized objects)
+	{		// les reports hierarchises (kinda serialized objects)
 			//     reply           status      exec status      notif
 	case 1:	if	( ( c == '^' ) || ( c == '+' ) || ( c == '*' ) || ( c == '=' ) )
 			{
@@ -80,22 +81,23 @@ switch	( e )
 			}			break;
 	case 2:	if	( c == ',' )
 			{
-			stac.push_back( conteneur( nam, c ) );	// conteneur racine
+			stac.push_back( conteneur( nam, c ) );
 			e = 10;
+			return( 6 );	// debut conteneur report, le nom est dans nam
 			}
 		else if	( c < ' ' )
 			{
 			e = 1;
-			return( 6 );		// fin de report court, le nom est dans nam
+			return( 7 );	// debut et fin de report court, le nom est dans nam
 			}
 		else	{
 			nam += char(c);
 			}			break;
 	case 10: if	( ( c == '{' ) || ( c == '[' ) )
 			{
-			stac.push_back( conteneur( "", c ) );	// debut conteneur anonyme
+			stac.push_back( conteneur( "", c ) );
 			e = 10;
-			return( 3 );
+			return( 3 );	// debut conteneur anonyme
 			}
 		else if ( ( c == '}' ) || ( c == ']' ) )
 			{		// cet etat -15 sert a differer le depilage du conteneur avant etat 15
@@ -115,7 +117,7 @@ switch	( e )
 			if	( ( c == '^' ) || ( c == '+' ) || ( c == '*' ) || ( c == '=' ) )
 				{
 				e = -1;
-				return( 7 );	// fin de conteneur racine
+				return( 8 );	// fin de conteneur report
 				}
 			else	return(-66632);	// fin de ligne inattendue
 			}
@@ -135,7 +137,7 @@ switch	( e )
 			{
 			stac.push_back( conteneur( nam, c ) );	// debut conteneur
 			e = 10;
-			return( 2 );
+			return( 2 );	// debut conteneur
 			}
 		else if	( c == '"' )
 			{
@@ -175,7 +177,7 @@ switch	( e )
 			if	( ( c == '^' ) || ( c == '+' ) || ( c == '*' ) || ( c == '=' ) )
 				{
 				e = -1;
-				return( 7 );	// fin de conteneur racine
+				return( 8 );	// fin de conteneur report
 				}
 			else	return(-66633);	// fin de ligne inattendue
 			}
@@ -184,7 +186,7 @@ switch	( e )
 	case 70 : if	( c < ' ' )
 			{
 			e = 1;		// rien a depiler
-			return( 8 );	// fin de stream, le contenu est dans val
+			return( 9 );	// fin de stream, le contenu est dans val
 			}
 		else if ( c == '\\' )
 			{
