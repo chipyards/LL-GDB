@@ -6,36 +6,32 @@ using namespace std;
 
 #include "mi_parse.h"
 
-#include <windows.h> 
+#include <windows.h>
 #include "spawn_w.h"
 
-int main( int argc, char ** argv )
+void usage()
+{
+printf("usage : appli d <cmd> : test spawn, process generique avec 2 pipes\n"
+       "        appli m <fil> : test parseur MI avec un fichier texte\n" );
+}
+
+// test 2 pipes avec un child process quelconque
+int test_daddy( const char * cmd )
 {
 daddy ledad;
 #define dad (&ledad)
 int retval;
-char tbuf[1024]; 
-int c, d;
+char tbuf[1024];
+int d;
 
-if	( argc > 1 )
+retval = dad->start_child( (char*)cmd );
+if	( retval )
+	printf("error daddy %d\n", retval );
+
+while	( fgets( tbuf, sizeof(tbuf), stdin ) )
 	{
-	retval = dad->start_child( (char*)argv[1] );
-	if	( retval )
-		printf("error daddy %d\n", retval );
-	}
-do	{
-	c = getchar();
-	tbuf[0] = 0;
-	switch	( c )
-		{
-		case 'b' : snprintf( tbuf, sizeof(tbuf), "-break-insert main\n" );
-			break;
-		case 'r' : snprintf( tbuf, sizeof(tbuf), "-exec-run\n" );
-			break;
-		case 'c' : snprintf( tbuf, sizeof(tbuf), "-exec-continue\n" );
-			break;
-		case 'q' : snprintf( tbuf, sizeof(tbuf), "-gdb-exit\n\n" );
-		}
+	if	( tbuf[0] == 'Q' )
+		break;
 	if	( tbuf[0] )
 		dad->send_cmd(tbuf);
 	while	( ( d = dad->child_getc() ) >= 0 )
@@ -43,12 +39,11 @@ do	{
 		putc( d, stdout );
 		}
 	fflush(stdout);
-	} while ( c != 'Q' );
-
-
+	}
 return 0;
 }
 
+// test du parseur de MI, sans child process, utilise un fichier texte ou stdin
 int test_parseur( const char * fnam )
 {
 FILE * fil;
@@ -56,7 +51,8 @@ mi_parse lemipa;
 #define mipa (&lemipa)
 
 char tbuf[1<<18];
-int c, retval, level = 0;
+char dbuf[256];
+int c, retval;
 unsigned int i, curlin = 1;
 
 if	( fnam )
@@ -74,65 +70,21 @@ while	( fgets( tbuf, sizeof(tbuf), fil ) )
 		c = tbuf[i++];
 		if	( i >= sizeof(tbuf) )
 			{
-			printf("fin de buffer !!!\n");
+			printf("!!! buffer plein !!!\n");
 			c = 0;
 			}
 		retval = mipa->proc1char( c );
 		if	( retval == 0 )
 			continue;
-		/*	0 : R.A.S.
-			1 : fin de valeur
-			2 : debut de conteneur nomme
-			3 : debut de conteneur anonyme
-			4 : fin de conteneur nomme
-			5 : fin de conteneur anonyme
-			6 : debut de conteneur report
-			7 : fin de conteneur report vide
-			8 : fin de conteneur report
-			9 : fin de stream-output
-		*/
-		switch	( retval )
+		else if	( retval < 0 )
 			{
-			case 1: if	( level > 0 )
-					printf( "%*s", level*3, " " );	// indent!
-				if	( mipa->nam.size() )	
-					printf("%s = \"%s\"\n", mipa->nam.c_str(), mipa->val.c_str() );
-				else	printf("\"%s\"\n", mipa->val.c_str() );
-				break;
-			case 2: if	( level > 0 )
-					printf( "%*s", level*3, " " );	// indent! 
-				printf("debut conteneur %s %c\n",
-				mipa->stac.back().nam.c_str(), mipa->stac.back().type );
-				++level;
-				break;
-			case 3: ++level;
-				break;
-			case 4: --level;
-				if	( level > 0)
-					printf( "%*s", level*3, " " );	// indent!
-				printf("fin conteneur %s !%c\n",
-					mipa->stac.back().nam.c_str(), mipa->stac.back().type );
-				break;
-			case 5: --level;
-				break;
-			case 6: printf("debut report %s\n", mipa->nam.c_str() );
-				++level;
-				break;
-			case 7: printf("report court %s\n", mipa->nam.c_str() );
-				break;
-			case 8: --level;
-				printf("fin report %s\n", mipa->stac.back().nam.c_str() );
-				break;
-			case 9: if	( mipa->nam.c_str()[0] == '(' )
-					printf("(%s\n",  mipa->val.c_str() );
-				// else	printf("stream %c%s\n", mipa->nam.c_str()[0], mipa->val.substr(0,72).c_str() );
-				break;
-			default : if	( retval < 0 )
-					{
-					printf("err %d, char %d, line %d\n",
-						-retval, i, curlin );
-					return 1;
-					}
+			printf("err %d, char %d, line %d\n",
+				-retval, i, curlin );
+			return 1;
+			}
+		else	{
+			if	( mipa->dump( retval, dbuf, sizeof(dbuf) ) )
+				printf("%s\n", dbuf );
 			}
 		} while ( c );
 	++curlin;
@@ -142,3 +94,18 @@ while	( fgets( tbuf, sizeof(tbuf), fil ) )
 
 return 0;
 }
+
+int main( int argc, char ** argv )
+{
+if	( argc < 2 )
+	{ usage(); return 1; }
+
+switch	( argv[1][0] )
+	{
+	case 'd' : test_daddy( argv[2] ); break;
+	case 'm' : test_parseur( argv[2] ); break;
+	default: usage();
+	}
+return 0;
+}
+

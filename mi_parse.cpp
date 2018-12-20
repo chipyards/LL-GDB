@@ -1,7 +1,7 @@
 /* parseur de donnees MI produites par GDB
    - maintient une pile de l'ascendance de l'element courant
  */
-
+#include <stdio.h>
 using namespace std;
 
 #include <string>
@@ -205,3 +205,62 @@ switch	( e )
 	}
 return 0;
 }
+
+// formatter un dump texte indente, en fonction de la valeur retournee par mi_parse::proc1char()
+// seulement si celle-ci est positive - retourne le nombre de chars mis dans buf
+	/*	0 : R.A.S.
+		1 : fin de valeur
+		2 : debut de conteneur nomme
+		3 : debut de conteneur anonyme
+		4 : fin de conteneur nomme
+		5 : fin de conteneur anonyme
+		6 : debut de conteneur report
+		7 : fin de conteneur report vide
+		8 : fin de conteneur report
+		9 : fin de stream-output
+	*/
+int mi_parse::dump( int retval, char * buf, int size )
+{
+int pos = 0;
+static int level = 0;
+switch	( retval )
+	{
+	case 1: if	( level > 0 )
+			pos += snprintf( buf, size,  "%*s", level*3, " " );	// indent!
+		if	( nam.size() )
+			pos += snprintf( buf+pos, size, "%s = \"%s\"", nam.c_str(), val.c_str() );
+		else	pos += snprintf( buf+pos, size, "\"%s\"", val.c_str() );
+		break;
+	case 2: if	( level > 0 )
+			pos += snprintf( buf, size,  "%*s", level*3, " " );	// indent!
+		pos += snprintf( buf+pos, size, "debut conteneur %s %c",
+		stac.back().nam.c_str(), stac.back().type );
+		++level;
+		break;
+	case 3: ++level;
+		break;
+	case 4: --level;
+		if	( level > 0)
+			pos += snprintf( buf, size,  "%*s", level*3, " " );	// indent!
+		pos += snprintf( buf+pos, size, "fin conteneur %s !%c",
+			stac.back().nam.c_str(), stac.back().type );
+		break;
+	case 5: --level;
+		break;
+	case 6: pos += snprintf( buf, size, "debut report %s", nam.c_str() );
+		level = 1;
+		break;
+	case 7: pos += snprintf( buf, size, "report court %s", nam.c_str() );
+		level = 0;
+		break;
+	case 8: pos += snprintf( buf, size, "fin report %s", stac.back().nam.c_str() );
+		level = 0;
+		break;
+	case 9: if	( nam.c_str()[0] == '(' )
+			pos += snprintf( buf, size, "(%s",  val.c_str() );
+		else	pos += snprintf( buf, size, "stream %c%s", nam.c_str()[0], val.substr(0,72).c_str() );
+		break;
+	}
+return pos;
+}
+

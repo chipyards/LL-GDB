@@ -34,6 +34,9 @@
 		</Compiler>
 		<Unit filename="../appli.cpp" />
 		<Unit filename="../mi_parse.cpp" />
+		<Unit filename="../mi_parse.h" />
+		<Unit filename="../spawn_w.cpp" />
+		<Unit filename="../spawn_w.h" />
 		<Extensions>
 			<code_completion />
 			<envvars />

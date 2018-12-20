@@ -28,4 +28,7 @@ mi_parse() : e(1) {};
 // cette fonction parse un caractere et rend zero sauf si on a une fin de valeur
 int proc1char( int c );
 
+// formatter un dump texte indente, en fonction de la valeur retournee par mi_parse::proc1char()
+int dump( int retval, char * buf, int size );
+
 };
