@@ -5,19 +5,63 @@ using namespace std;
 #include <vector>
 
 #include "mi_parse.h"
-//#define PIPO
+
+#include <windows.h> 
+#include "spawn_w.h"
+
 int main( int argc, char ** argv )
+{
+daddy ledad;
+#define dad (&ledad)
+int retval;
+char tbuf[1024]; 
+int c, d;
+
+if	( argc > 1 )
+	{
+	retval = dad->start_child( (char*)argv[1] );
+	if	( retval )
+		printf("error daddy %d\n", retval );
+	}
+do	{
+	c = getchar();
+	tbuf[0] = 0;
+	switch	( c )
+		{
+		case 'b' : snprintf( tbuf, sizeof(tbuf), "-break-insert main\n" );
+			break;
+		case 'r' : snprintf( tbuf, sizeof(tbuf), "-exec-run\n" );
+			break;
+		case 'c' : snprintf( tbuf, sizeof(tbuf), "-exec-continue\n" );
+			break;
+		case 'q' : snprintf( tbuf, sizeof(tbuf), "-gdb-exit\n\n" );
+		}
+	if	( tbuf[0] )
+		dad->send_cmd(tbuf);
+	while	( ( d = dad->child_getc() ) >= 0 )
+		{
+		putc( d, stdout );
+		}
+	fflush(stdout);
+	} while ( c != 'Q' );
+
+
+return 0;
+}
+
+int test_parseur( const char * fnam )
 {
 FILE * fil;
 mi_parse lemipa;
 #define mipa (&lemipa)
+
 char tbuf[1<<18];
 int c, retval, level = 0;
 unsigned int i, curlin = 1;
 
-if	( argc > 1 )
+if	( fnam )
 	{
-	fil = fopen( argv[1], "r" );
+	fil = fopen( fnam, "r" );
 	if	( fil == NULL )
 		return 1;
 	}
@@ -25,9 +69,6 @@ else	fil = stdin;
 
 while	( fgets( tbuf, sizeof(tbuf), fil ) )
 	{
-	#ifdef PIPO
-	printf("!%s!\n", tbuf );
-	#else
 	mipa->e = 1; i = 0;
 	do	{
 		c = tbuf[i++];
@@ -94,7 +135,6 @@ while	( fgets( tbuf, sizeof(tbuf), fil ) )
 					}
 			}
 		} while ( c );
-	#endif
 	++curlin;
 	if	( fil != stdin )
 		getchar();
