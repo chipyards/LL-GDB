@@ -52,9 +52,11 @@ $(EXE) : $(OBJS)
 # other
 
 clean :
-	rm *.o; rm *.exe
+	rm *.o
 
 # dependances : 
 mi_parse.o : mi_parse.h
 spawn_w.o : spawn_w.h
-gui.o : mi_parse.h spawn_w.h
+futf8.o : futf8.h
+transcript.o : transcript.h futf8.h
+gui.o : gui.h mi_parse.h spawn_w.h transcript.h futf8.h

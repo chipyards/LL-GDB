@@ -12,4 +12,7 @@ GtkWidget *  wtran;	// transcript window
 
 transzcript t;
 
+daddy * dad;
+mi_parse * mipa;
+
 } glostru;

@@ -7,6 +7,16 @@
 #include <locale.h>
 
 #include "transcript.h"
+
+using namespace std;
+#include <string>
+#include <vector>
+
+#include "mi_parse.h"
+
+#include <windows.h>
+#include "spawn_w.h"
+
 #include "gui.h"
 
 void auto_test( glostru * glo )
@@ -38,14 +48,34 @@ gtk_widget_destroy( glo->wmain );
 
 void cmd_call( GtkWidget *widget, glostru * glo )
 {
-glo->t.printf("%s\n", gtk_entry_get_text( GTK_ENTRY(glo->ecmd) ) );
-gtk_entry_set_text( GTK_ENTRY(glo->ecmd) , "" );
+glo->t.printf("> %s\n", gtk_entry_get_text( GTK_ENTRY(widget) ) );
+glo->dad->send_cmd( gtk_entry_get_text( GTK_ENTRY(widget) ) );
+glo->dad->send_cmd( "\n" );
+gtk_entry_set_text( GTK_ENTRY(widget), "" );
 }
 
 int idle_call( glostru * glo )
 {
+int retval;
+char tbuf[1024];
+int d;
 if	( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog) ) )
 	auto_test( glo );
+
+while	( ( d = glo->dad->child_getc() ) >= 0 )
+	{
+	retval = glo->mipa->proc1char( d );
+	if	( retval == 0 )
+		continue;
+	else if	( retval < 0 )
+		{
+		glo->t.printf("Err %d\n", -retval );
+		}
+	else	{
+		if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
+			glo->t.printf("%s\n", tbuf );
+		}
+	}
 return( -1 );
 }
 
@@ -53,7 +83,33 @@ static void action_call( GtkAction *action, glostru * glo )
 {
 const char * aname;
 aname = gtk_action_get_name( action );
-glo->t.printf("action %s\n", aname );
+switch	( aname[0] )
+	{
+	case 'r' :			// run
+		switch	( aname[1] )
+			{
+			case 'e' : glo->dad->send_cmd("-gdb-set new-console on\n");
+				   glo->dad->send_cmd("-exec-run --start\n");		break;
+			case 'u' : glo->dad->send_cmd("-exec-continue\n");		break;
+			case 'p' : glo->dad->send_cmd("-exec-interrupt\n");		break;
+			case 'c' : break;
+			} break;
+	case 's' :			// steps
+		switch	( aname[1] )
+			{
+			case 'i' : glo->dad->send_cmd("-exec-step-instruction\n");	break;
+			case 'v' : glo->dad->send_cmd("-exec-next-instruction\n");	break;
+			case 'o' : glo->dad->send_cmd("-exec-finish\n");		break;
+			} break;
+	case 'b' :			// break
+		switch	( aname[1] )
+			{
+			case 't' : glo->dad->send_cmd("-break-insert main\n"); break;
+			case 'e' : break;
+			} break;
+	default :
+		glo->t.printf("action %s\n", aname );
+	}
 }
 
 /** ============================ menus std ======================= */
@@ -63,9 +119,20 @@ static GtkActionEntry ui_entries[] = {
   // name,    stock id,  label
   { "FileMenu", NULL,	"_File" },              
   { "RunMenu", NULL, 	"_Run" },
+  { "BreakMenu", NULL, 	"_Breakpoints" },
   // name,  stock id,   label, accel, tooltip, callback
-  { "open", NULL, "Open",  "<control>O", "", G_CALLBACK(action_call) },
-  { "quit", NULL, "Quitter", "<Alt>F4",	NULL, G_CALLBACK(action_call) }
+  { "open", 		NULL, "Open",			"<control>O",	NULL, G_CALLBACK(action_call) },
+  { "quit", 		NULL, "Quit",			"<alt>F4", 	NULL, G_CALLBACK(action_call) },
+  { "res", 		NULL, "Restart",		"<shift>F5",	NULL, G_CALLBACK(action_call) },
+  { "run", 		NULL, "Run/Continue",		"F5",		NULL, G_CALLBACK(action_call) },
+  { "rpa", 		NULL, "Pause",  		"<control>F5",	NULL, G_CALLBACK(action_call) },
+  { "si", 		NULL, "Step In",  		"F11",		NULL, G_CALLBACK(action_call) },
+							// windows bug here : F10 intercepted
+  { "sv", 		NULL, "Step Over",  		"<shift>F11",	NULL, G_CALLBACK(action_call) },
+  { "so", 		NULL, "Step Out",		"<control>F11",	NULL, G_CALLBACK(action_call) },
+  { "rcu",	 	NULL, "Run to Cursor",		"<alt>F5",	NULL, G_CALLBACK(action_call) },
+  { "btog", 		NULL, "Toggle Breakpoint",	"F9",		NULL, G_CALLBACK(action_call) },
+  { "bena",	 	NULL, "Enable/Disable Break",	"<control>F9",	NULL, G_CALLBACK(action_call) },
 };
 
 // menu descriptions
@@ -75,6 +142,19 @@ static const gchar * ui_xml =
 "    <menu action='FileMenu'>"
 "      <menuitem action='open'/>"
 "      <menuitem action='quit'/>"
+"    </menu>"
+"    <menu action='RunMenu'>"
+"      <menuitem action='res'/>"
+"      <menuitem action='run'/>"
+"      <menuitem action='rpa'/>"
+"      <menuitem action='si'/>"
+"      <menuitem action='sv'/>"
+"      <menuitem action='so'/>"
+"      <menuitem action='rcu'/>"
+"    </menu>"
+"    <menu action='BreakMenu'>"
+"      <menuitem action='btog'/>"
+"      <menuitem action='bena'/>"
 "    </menu>"
 "  </menubar>"
 "</ui>";
@@ -113,6 +193,12 @@ int main( int argc, char *argv[] )
 GtkWidget * curwidg;
 glostru theglo;
 #define glo (&theglo)
+
+daddy ledad;
+mi_parse lemipa;
+
+glo->dad = &ledad;
+glo->mipa = &lemipa;
 
 setlocale( LC_ALL, "C" );	// question de survie
 
@@ -187,7 +273,18 @@ glo->bqui = curwidg;
 
 gtk_widget_show_all( glo->wmain );
 
-gtk_timeout_add( 250, (GtkFunction)(idle_call), (gpointer)glo );
+gtk_timeout_add( 100, (GtkFunction)(idle_call), (gpointer)glo );
+
+if	( argc > 1 )
+	{
+	char tbuf[128]; int retval;
+	snprintf( tbuf, sizeof(tbuf), "gdb --interpreter=mi %s", argv[1] );
+
+	retval = glo->dad->start_child( tbuf );
+	if	( retval )
+	glo->t.printf("Error daddy %d\n", retval );
+	}
+else	return 1;
 
 gtk_main();
 

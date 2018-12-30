@@ -47,9 +47,9 @@ gtk_text_buffer_get_end_iter( lebuf, &iter );
   // insert text, the iter will be revalidated after insertion to the end of inserted text
 if	( lbuf[0] =='E' )	// ERROR
 	gtk_text_buffer_insert_with_tags_by_name( lebuf, &iter, lbuf, -1, "redux", NULL );
-else if	( lbuf[0] =='W' )	// Warning
+else if	( lbuf[0] =='>' )	// commande locale
 	gtk_text_buffer_insert_with_tags_by_name( lebuf, &iter, lbuf, -1, "orangux", NULL );
-else if	( lbuf[0] =='>' )	// Prompt
+else if	( lbuf[0] =='(' )	// Prompt
 	gtk_text_buffer_insert_with_tags_by_name( lebuf, &iter, lbuf, -1, "promptux", NULL );
 else	gtk_text_buffer_insert( lebuf, &iter, lbuf, -1 );
 

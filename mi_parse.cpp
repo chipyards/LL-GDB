@@ -233,7 +233,8 @@ switch	( retval )
 		break;
 	case 2: if	( level > 0 )
 			pos += snprintf( buf, size,  "%*s", level*3, " " );	// indent!
-		pos += snprintf( buf+pos, size, "debut conteneur %s %c",
+		// pos += snprintf( buf+pos, size, "debut conteneur %s %c",
+		pos += snprintf( buf+pos, size, "conteneur %s %c",
 		stac.back().nam.c_str(), stac.back().type );
 		++level;
 		break;
@@ -242,8 +243,10 @@ switch	( retval )
 	case 4: --level;
 		if	( level > 0)
 			pos += snprintf( buf, size,  "%*s", level*3, " " );	// indent!
-		pos += snprintf( buf+pos, size, "fin conteneur %s !%c",
-			stac.back().nam.c_str(), stac.back().type );
+		// pos += snprintf( buf+pos, size, "fin conteneur %s !%c",
+		//	stac.back().nam.c_str(), stac.back().type );
+		// un hack bien sale : '{' + 2 donne '}', '[' + 2 donne ']'
+		pos += snprintf( buf+pos, size, "%c", stac.back().type + 2 );
 		break;
 	case 5: --level;
 		break;
