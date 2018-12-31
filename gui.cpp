@@ -217,21 +217,64 @@ gtk_window_set_title( GTK_WINDOW(curwidg), "JLNs Transzkrypt" );
 gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 2 );
 glo->wmain = curwidg;
 
-
 // boite verticale
 curwidg = gtk_vbox_new( FALSE, 2 );
 gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
-// preparer la barre de menu
+// la barre de menu
 curwidg = mk_bars( glo );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
 glo->mbar = curwidg;
 
-// scrolled window pour le transcript
-curwidg = glo->t.create();
+// paire verticale "paned"
+curwidg = gtk_vpaned_new ();
 gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
-gtk_widget_set_usize( curwidg, 700, 200 );
+// gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 5 );	// le tour exterieur
+glo->vpan = curwidg;
+
+// paire horizontale "paned" dans la moitie superieure de la paned verticale
+curwidg = gtk_hpaned_new ();
+gtk_paned_pack1( GTK_PANED(glo->vpan), curwidg, TRUE, FALSE );
+glo->hpan = curwidg;
+
+curwidg = gtk_notebook_new();
+gtk_paned_pack1 (GTK_PANED (glo->hpan), curwidg, FALSE, FALSE );
+glo->notl = curwidg;
+
+curwidg = gtk_notebook_new();
+gtk_paned_pack2 (GTK_PANED (glo->hpan), curwidg, TRUE, FALSE );
+glo->notr = curwidg;
+
+curwidg = gtk_scrolled_window_new( NULL, NULL );
+gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
+gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Registers") );
+gtk_widget_set_size_request (curwidg, 60, 100);
+glo->scw1 = curwidg;
+
+curwidg = gtk_scrolled_window_new( NULL, NULL );
+gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
+gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Stack") );
+gtk_widget_set_size_request (curwidg, 60, 100);
+glo->scw2 = curwidg;
+
+curwidg = gtk_scrolled_window_new( NULL, NULL );
+gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
+gtk_notebook_append_page( GTK_NOTEBOOK( glo->notr ), curwidg, gtk_label_new("Disassembly") );
+gtk_widget_set_size_request (curwidg, 200, 100);
+glo->scw3 = curwidg;
+
+curwidg = gtk_scrolled_window_new( NULL, NULL );
+gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
+gtk_notebook_append_page( GTK_NOTEBOOK( glo->notr ), curwidg, gtk_label_new("Memory") );
+gtk_widget_set_size_request (curwidg, 200, 100);
+glo->scw4 = curwidg;
+
+// scrolled window pour le transcript dans la moitie inferieure de la paned verticale
+curwidg = glo->t.create();
+gtk_paned_pack2( GTK_PANED(glo->vpan), curwidg, TRUE, FALSE );
+gtk_widget_set_size_request( curwidg, 700, 200 );
+// gtk_widget_set_usize( curwidg, 700, 200 );
 glo->wtran = curwidg;
 
 // boite horizontale
@@ -239,14 +282,6 @@ curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
 gtk_container_set_border_width( GTK_CONTAINER (curwidg), 2);
 gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
 glo->hbut = curwidg;
-
-/* simple bouton *
-curwidg = gtk_button_new_with_label (" Pluft ");
-gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
-                    GTK_SIGNAL_FUNC( pluft_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
-glo->bplu = curwidg;
-//*/
 
 /* entree editable */
 curwidg = gtk_entry_new();
