@@ -12,6 +12,7 @@ using namespace std;
 #include <string>
 #include <vector>
 
+#include "target.h"
 #include "mi_parse.h"
 
 #include <windows.h>
@@ -186,19 +187,24 @@ labar = gtk_ui_manager_get_widget( manui, "/MenuBar" );
 return labar;
 }
 
+// few global things
+glostru theglo;
+regbanko * regbank;
+
 // =================== THE MAIN =======================
 
 int main( int argc, char *argv[] )
 {
 GtkWidget * curwidg;
-glostru theglo;
 #define glo (&theglo)
 
 daddy ledad;
 mi_parse lemipa;
+regbanko lebank;
 
 glo->dad = &ledad;
 glo->mipa = &lemipa;
+regbank = &lebank;
 
 setlocale( LC_ALL, "C" );	// question de survie
 

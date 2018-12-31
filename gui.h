@@ -22,5 +22,6 @@ transzcript t;
 
 daddy * dad;
 mi_parse * mipa;
+regbanko * regbank;
 
 } glostru;

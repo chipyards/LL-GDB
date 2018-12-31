@@ -8,6 +8,9 @@ using namespace std;
 
 #include <vector>
 #include "mi_parse.h"
+#include "target.h"
+
+extern regbanko * regbank;
 
 /*
 etats :
@@ -230,13 +233,24 @@ switch	( retval )
 		if	( nam.size() )
 			pos += snprintf( buf+pos, size, "%s = \"%s\"", nam.c_str(), val.c_str() );
 		else	pos += snprintf( buf+pos, size, "\"%s\"", val.c_str() );
+		// traitement fonction du contexte
+		if	( ( stac.size() ) && ( stac.back().nam == string("register-names") ) )
+			regbank->add_reg_name( val );
+		else if	( ( stac.size() >= 2 ) && ( stac[stac.size()-2].nam == string("register-values") ) )
+			{
+			if	( nam == string("number") ) regbank->set_reg_pos( val );
+			else if	( nam == string("value") )  regbank->set_reg_val( val );
+			}
 		break;
 	case 2: if	( level > 0 )
 			pos += snprintf( buf, size,  "%*s", level*3, " " );	// indent!
 		// pos += snprintf( buf+pos, size, "debut conteneur %s %c",
 		pos += snprintf( buf+pos, size, "conteneur %s %c",
-		stac.back().nam.c_str(), stac.back().type );
+				 stac.back().nam.c_str(), stac.back().type );
 		++level;
+		// traitement fonction du contexte
+		if	( stac.back().nam == string("register-names") )
+			regbank->start_reg_names();
 		break;
 	case 3: ++level;
 		break;
@@ -260,7 +274,11 @@ switch	( retval )
 		level = 0;
 		break;
 	case 9: if	( nam.c_str()[0] == '(' )
+			{
 			pos += snprintf( buf, size, "(%s",  val.c_str() );
+			if	( regbank->regs.size() >= 9 )
+				pos += snprintf( buf+pos, size, " %s = %08x", regbank->regs[8].name.c_str(), (unsigned int)regbank->regs[8].val );  
+			}
 		else	pos += snprintf( buf, size, "stream %c%s", nam.c_str()[0], val.substr(0,72).c_str() );
 		break;
 	}
