@@ -30,5 +30,7 @@ int proc1char( int c );
 
 // formatter un dump texte indente, en fonction de la valeur retournee par mi_parse::proc1char()
 int dump( int retval, char * buf, int size );
+// extraire et ranger les donnees dans la target, en fonction de la valeur retournee par mi_parse::proc1char()
+int extract( int retval, target * targ );
 
 };

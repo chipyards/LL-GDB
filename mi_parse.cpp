@@ -3,14 +3,11 @@
  */
 #include <stdio.h>
 using namespace std;
-
 #include <string>
-
 #include <vector>
-#include "mi_parse.h"
-#include "target.h"
 
-extern regbanko * regbank;
+#include "target.h"
+#include "mi_parse.h"
 
 /*
 etats :
@@ -233,14 +230,6 @@ switch	( retval )
 		if	( nam.size() )
 			pos += snprintf( buf+pos, size, "%s = \"%s\"", nam.c_str(), val.c_str() );
 		else	pos += snprintf( buf+pos, size, "\"%s\"", val.c_str() );
-		// traitement fonction du contexte
-		if	( ( stac.size() ) && ( stac.back().nam == string("register-names") ) )
-			regbank->add_reg_name( val );
-		else if	( ( stac.size() >= 2 ) && ( stac[stac.size()-2].nam == string("register-values") ) )
-			{
-			if	( nam == string("number") ) regbank->set_reg_pos( val );
-			else if	( nam == string("value") )  regbank->set_reg_val( val );
-			}
 		break;
 	case 2: if	( level > 0 )
 			pos += snprintf( buf, size,  "%*s", level*3, " " );	// indent!
@@ -248,9 +237,6 @@ switch	( retval )
 		pos += snprintf( buf+pos, size, "conteneur %s %c",
 				 stac.back().nam.c_str(), stac.back().type );
 		++level;
-		// traitement fonction du contexte
-		if	( stac.back().nam == string("register-names") )
-			regbank->start_reg_names();
 		break;
 	case 3: ++level;
 		break;
@@ -274,14 +260,37 @@ switch	( retval )
 		level = 0;
 		break;
 	case 9: if	( nam.c_str()[0] == '(' )
-			{
 			pos += snprintf( buf, size, "(%s",  val.c_str() );
-			if	( regbank->regs.size() >= 9 )
-				pos += snprintf( buf+pos, size, " %s = %08x", regbank->regs[8].name.c_str(), (unsigned int)regbank->regs[8].val );  
-			}
 		else	pos += snprintf( buf, size, "stream %c%s", nam.c_str()[0], val.substr(0,72).c_str() );
 		break;
 	}
 return pos;
 }
 
+// extraire et ranger les donnees dans la target, en fonction de la valeur retournee par mi_parse::proc1char()
+int mi_parse::extract( int retval, target * targ )
+{
+int ss = stac.size();
+switch	( retval )
+	{
+	case 1: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )	// short circuit eval ;-)
+			targ->regs.add_reg_name( val );
+		else if	( ( ss >= 2 ) && ( stac[stac.size()-2].nam == string("register-values") ) )
+			{
+			if	( nam == string("number") ) targ->regs.set_reg_pos( val );
+			else if	( nam == string("value") )  targ->regs.set_reg_val( val );
+			}
+		break;
+	case 2: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
+			targ->regs.start_reg_names();
+		break;
+	case 3: break;
+	case 4: break;
+	case 5: break;
+	case 6: break;
+	case 7: break;
+	case 8: break;
+	case 9: break;
+	}
+return 0;
+}

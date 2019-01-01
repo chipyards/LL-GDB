@@ -12,14 +12,16 @@ using namespace std;
 #include <string>
 #include <vector>
 
-#include "target.h"
-#include "mi_parse.h"
-
 #include <windows.h>
 #include "spawn_w.h"
 
+#include "target.h"
+#include "mi_parse.h"
+
+
 #include "gui.h"
 
+/*
 void auto_test( glostru * glo )
 {
 // compter les lignes
@@ -34,7 +36,7 @@ t = localtime( &it );
 glo->t.printf("%02d%c%02d%c%4d ", t->tm_mday, sep, t->tm_mon+1, sep, t->tm_year+1900 );
 glo->t.printf("%02dh%02dmn%02d\n", t->tm_hour, t->tm_min, t->tm_sec );
 }
-
+*/
 /** ============================ call backs ======================= */
 
 gint close_event_call( GtkWidget *widget,
@@ -60,8 +62,7 @@ int idle_call( glostru * glo )
 int retval;
 char tbuf[1024];
 int d;
-if	( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog) ) )
-	auto_test( glo );
+int tog = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog) );
 
 while	( ( d = glo->dad->child_getc() ) >= 0 )
 	{
@@ -73,8 +74,24 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 		glo->t.printf("Err %d\n", -retval );
 		}
 	else	{
-		if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
-			glo->t.printf("%s\n", tbuf );
+		if	( ( tog ) || ( retval == 9 ) )
+			{
+			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
+				glo->t.printf("%s\n", tbuf );
+			}
+		if	( ( retval == 9 ) && ( glo->mipa->nam.c_str()[0] == '(' ) )
+			{			// ici petit report de debug
+			if	( glo->targ->regs.regs.size() >= 9 )
+				{
+				glo->t.printf( "%c %s = %08x\n", (glo->targ->regs.regs[4].changed)?':':' ',
+						glo->targ->regs.regs[4].name.c_str(),
+						(unsigned int)glo->targ->regs.regs[4].val );
+				glo->t.printf( "%c %s = %08x\n", (glo->targ->regs.regs[8].changed)?':':' ',
+						glo->targ->regs.regs[8].name.c_str(),
+						(unsigned int)glo->targ->regs.regs[8].val );
+				}
+			}
+		glo->mipa->extract( retval, glo->targ );
 		}
 	}
 return( -1 );
@@ -84,24 +101,27 @@ static void action_call( GtkAction *action, glostru * glo )
 {
 const char * aname;
 aname = gtk_action_get_name( action );
+int get = 0;
 switch	( aname[0] )
 	{
 	case 'r' :			// run
 		switch	( aname[1] )
 			{
 			case 'e' : glo->dad->send_cmd("-gdb-set new-console on\n");
-				   glo->dad->send_cmd("-exec-run --start\n");		break;
+				   glo->dad->send_cmd("-data-list-register-names\n");
+				   glo->dad->send_cmd("-exec-run --start\n");
+				   break;
 			case 'u' : glo->dad->send_cmd("-exec-continue\n");		break;
 			case 'p' : glo->dad->send_cmd("-exec-interrupt\n");		break;
 			case 'c' : break;
-			} break;
+			} get++; break;
 	case 's' :			// steps
 		switch	( aname[1] )
 			{
-			case 'i' : glo->dad->send_cmd("-exec-step-instruction\n");	break;
+			case 'i' : glo->dad->send_cmd("-exec-step-instruction\n");   break;
 			case 'v' : glo->dad->send_cmd("-exec-next-instruction\n");	break;
 			case 'o' : glo->dad->send_cmd("-exec-finish\n");		break;
-			} break;
+			} get++; break;
 	case 'b' :			// break
 		switch	( aname[1] )
 			{
@@ -111,6 +131,8 @@ switch	( aname[0] )
 	default :
 		glo->t.printf("action %s\n", aname );
 	}
+if	( get )
+	glo->dad->send_cmd("-data-list-register-values x\n");
 }
 
 /** ============================ menus std ======================= */
@@ -118,7 +140,7 @@ switch	( aname[0] )
 // tableau d'actions initialise
 static GtkActionEntry ui_entries[] = {
   // name,    stock id,  label
-  { "FileMenu", NULL,	"_File" },              
+  { "FileMenu", NULL,	"_File" },
   { "RunMenu", NULL, 	"_Run" },
   { "BreakMenu", NULL, 	"_Breakpoints" },
   // name,  stock id,   label, accel, tooltip, callback
@@ -187,9 +209,11 @@ labar = gtk_ui_manager_get_widget( manui, "/MenuBar" );
 return labar;
 }
 
-// few global things
-glostru theglo;
-regbanko * regbank;
+// the big storage of everything
+static glostru theglo;
+static daddy ledad;
+static mi_parse lemipa;
+static target latarget;
 
 // =================== THE MAIN =======================
 
@@ -198,13 +222,9 @@ int main( int argc, char *argv[] )
 GtkWidget * curwidg;
 #define glo (&theglo)
 
-daddy ledad;
-mi_parse lemipa;
-regbanko lebank;
-
 glo->dad = &ledad;
 glo->mipa = &lemipa;
-regbank = &lebank;
+glo->targ = &latarget;
 
 setlocale( LC_ALL, "C" );	// question de survie
 
@@ -300,7 +320,7 @@ gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0);
 glo->ecmd = curwidg;
 
 // check bouton
-curwidg = gtk_check_button_new_with_label ("auto-test");
+curwidg = gtk_check_button_new_with_label ("full dump");
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( curwidg ), FALSE );
 glo->btog = curwidg;
@@ -326,6 +346,11 @@ if	( argc > 1 )
 	glo->t.printf("Error daddy %d\n", retval );
 	}
 else	return 1;
+
+// tentative de demarrage auto
+glo->dad->send_cmd("-gdb-set new-console on\n");
+glo->dad->send_cmd("-data-list-register-names\n");
+glo->dad->send_cmd("-exec-run --start\n");
 
 gtk_main();
 

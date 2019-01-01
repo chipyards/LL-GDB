@@ -48,9 +48,11 @@ gtk_text_buffer_get_end_iter( lebuf, &iter );
 if	( lbuf[0] =='E' )	// ERROR
 	gtk_text_buffer_insert_with_tags_by_name( lebuf, &iter, lbuf, -1, "redux", NULL );
 else if	( lbuf[0] =='>' )	// commande locale
-	gtk_text_buffer_insert_with_tags_by_name( lebuf, &iter, lbuf, -1, "orangux", NULL );
+	gtk_text_buffer_insert_with_tags_by_name( lebuf, &iter, lbuf, -1, "greenux", NULL );
 else if	( lbuf[0] =='(' )	// Prompt
 	gtk_text_buffer_insert_with_tags_by_name( lebuf, &iter, lbuf, -1, "promptux", NULL );
+else if	( lbuf[0] ==':' )	// debug interne
+	gtk_text_buffer_insert_with_tags_by_name( lebuf, &iter, lbuf, -1, "blux", NULL );
 else	gtk_text_buffer_insert( lebuf, &iter, lbuf, -1 );
 
 ///////// limitation de taille /////////
@@ -136,8 +138,8 @@ ttext = curwidg;
 // NOTE : la couleur peut etre specifiee par un nom anglais "red", "pink"
 // ou par une chaine a la HTML "#FF8000" - ceci n'est pas documente...
 gtk_text_buffer_create_tag( lebuf, "redux", "background", "#ffAAAA", NULL);
-gtk_text_buffer_create_tag( lebuf, "orangux", "background", "#FFDD00", NULL);
-// gtk_text_buffer_create_tag( lebuf, "promptux", "background", "#FFFF00", "scale", PANGO_SCALE_X_LARGE, "weight", PANGO_WEIGHT_BOLD, NULL);
+gtk_text_buffer_create_tag( lebuf, "greenux", "background", "#00EE66", NULL);
+gtk_text_buffer_create_tag( lebuf, "blux", "background", "#66BBFF", NULL);	// "scale", PANGO_SCALE_X_LARGE, "weight", PANGO_WEIGHT_BOLD, NULL);
 gtk_text_buffer_create_tag( lebuf, "promptux", "background", "#FFFF00", NULL);
 
 return wscro;

@@ -59,6 +59,7 @@
 		<Unit filename="../mi_parse.h" />
 		<Unit filename="../spawn_w.cpp" />
 		<Unit filename="../spawn_w.h" />
+		<Unit filename="../target.h" />
 		<Unit filename="../transcript.cpp" />
 		<Unit filename="../transcript.h" />
 		<Extensions>
