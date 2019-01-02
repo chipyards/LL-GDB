@@ -83,12 +83,14 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			{			// ici petit report de debug
 			if	( glo->targ->regs.regs.size() >= 9 )
 				{
-				glo->t.printf( "%c %s = %08x\n", (glo->targ->regs.regs[4].changed)?':':' ',
-						glo->targ->regs.regs[4].name.c_str(),
-						(unsigned int)glo->targ->regs.regs[4].val );
-				glo->t.printf( "%c %s = %08x\n", (glo->targ->regs.regs[8].changed)?':':' ',
-						glo->targ->regs.regs[8].name.c_str(),
-						(unsigned int)glo->targ->regs.regs[8].val );
+				registro * r;
+				r = &(glo->targ->regs.regs[glo->targ->regs.isp]);
+				glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
+						r->name.c_str(), (unsigned int)r->val );
+				r = &(glo->targ->regs.regs[glo->targ->regs.iip]);
+				glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
+						r->name.c_str(), (unsigned int)r->val );
+				gtk_widget_queue_draw( glo->tlisr );
 				}
 			}
 		glo->mipa->extract( retval, glo->targ );
@@ -132,7 +134,61 @@ switch	( aname[0] )
 		glo->t.printf("action %s\n", aname );
 	}
 if	( get )
+	{
+	glo->targ->regs.reset_reg_changes();
 	glo->dad->send_cmd("-data-list-register-values x\n");
+	}
+}
+
+void regname_data_call( GtkTreeViewColumn * tree_column,	// sert pas !
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo )
+{
+unsigned int i;
+const char *text;
+// recuperer notre index dans la colonne 0 du model
+gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
+if	( i < glo->targ->regs.regs.size() )
+	{
+	text = glo->targ->regs.regs[i].name.c_str();
+	}
+else	text = "?";
+g_object_set( rendy, "text", text, NULL );
+}
+
+void regval_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo )
+{
+unsigned int i;
+int chng = 0;
+char text[64];
+// recuperer notre index dans la colonne 0 du model
+gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
+// elaborer la donnee
+#define MARKUP_REG	// 2 styles disponibles pour highlight du reg qui a change
+if	( i < glo->targ->regs.regs.size() )
+	{
+	chng = glo->targ->regs.regs[i].changed;
+	#ifdef MARKUP_REG
+	snprintf( text, sizeof(text), "<span background=\"%s\">%08X</span>",
+		  chng?"#88DDFF":"#FFFFFF", (unsigned int)glo->targ->regs.regs[i].val );
+	#else
+	snprintf( text, sizeof(text), "%08X", (unsigned int)glo->targ->regs.regs[i].val );
+	#endif
+	}
+else	snprintf( text, sizeof(text), "?" );
+#ifdef MARKUP_REG
+g_object_set( rendy, "markup", text, NULL );
+#else
+g_object_set( rendy, "text", text, NULL );
+// la couleur ne revient pas toute seule au defaut (blanc)
+g_object_set( rendy, "cell-background", chng?"#88DDFF":"#FFFFFF", "cell-background-set", TRUE, NULL );
+#endif
 }
 
 /** ============================ menus std ======================= */
@@ -209,13 +265,70 @@ labar = gtk_ui_manager_get_widget( manui, "/MenuBar" );
 return labar;
 }
 
+/** ============================ widgets ======================= */
+
+// Create the register view
+GtkWidget * mk_reg_view( glostru * glo )
+{
+GtkWidget *curwidg;
+GtkCellRenderer *renderer;
+GtkTreeViewColumn *curcol;
+GtkTreeSelection* cursel;
+GtkTreeIter curiter;
+
+// le modele : minimal, 1 colonne de type int
+glo->tmodr = gtk_list_store_new( 1, G_TYPE_INT );
+for ( int i = 0; i < 9; i++ )
+    {
+    gtk_list_store_append( glo->tmodr, &curiter );
+    gtk_list_store_set( glo->tmodr, &curiter, 0, i, -1 );
+    }
+
+// la vue
+curwidg = gtk_tree_view_new();
+
+// la colonne nom de registre, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, " Reg " );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)regname_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+
+// la colonne valeur, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, " Value " );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)regval_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+
+// configurer la selection
+cursel = gtk_tree_view_get_selection( (GtkTreeView*)curwidg );
+gtk_tree_selection_set_mode( cursel, GTK_SELECTION_NONE );
+
+// connecter modele
+gtk_tree_view_set_model( (GtkTreeView*)curwidg, GTK_TREE_MODEL( glo->tmodr ) );
+
+return(curwidg);
+}
+
+
+// =================== THE MAIN =======================
+
 // the big storage of everything
 static glostru theglo;
 static daddy ledad;
 static mi_parse lemipa;
 static target latarget;
-
-// =================== THE MAIN =======================
 
 int main( int argc, char *argv[] )
 {
@@ -275,8 +388,13 @@ glo->notr = curwidg;
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Registers") );
-gtk_widget_set_size_request (curwidg, 60, 100);
-glo->scw1 = curwidg;
+gtk_widget_set_size_request (curwidg, 110, 260);
+glo->scwr = curwidg;
+
+curwidg = mk_reg_view( glo );
+gtk_container_add( GTK_CONTAINER( glo->scwr ), curwidg );
+glo->tlisr = curwidg;
+
 
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
