@@ -11,6 +11,7 @@
 using namespace std;
 #include <string>
 #include <vector>
+#include <map>
 
 #include <windows.h>
 #include "spawn_w.h"
@@ -37,6 +38,31 @@ glo->t.printf("%02d%c%02d%c%4d ", t->tm_mday, sep, t->tm_mon+1, sep, t->tm_year+
 glo->t.printf("%02dh%02dmn%02d\n", t->tm_hour, t->tm_min, t->tm_sec );
 }
 */
+
+void expa( glostru * glo )
+{
+unsigned long long adr;
+adr = glo->targ->regs.get_rip()->val;
+if	( adr )
+	{
+	char tbuf[64];
+	snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5\n",
+					(unsigned int)adr, 128 + (unsigned int)adr );
+	glo->dad->send_cmd( tbuf );
+	}
+}
+
+void expb( glostru * glo )
+{
+glo->t.printf("voir stdout\n");
+printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmstock.size() );
+for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
+	glo->targ->asmstock[i].dump();
+for	( unsigned int i = 0; i < glo->targ->filestock.size(); ++i )
+	printf("%s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
+
+}
+
 /** ============================ call backs ======================= */
 
 gint close_event_call( GtkWidget *widget,
@@ -84,10 +110,10 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			if	( glo->targ->regs.regs.size() >= 9 )
 				{
 				registro * r;
-				r = &(glo->targ->regs.regs[glo->targ->regs.isp]);
+				r = glo->targ->regs.get_rsp();
 				glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
 						r->name.c_str(), (unsigned int)r->val );
-				r = &(glo->targ->regs.regs[glo->targ->regs.iip]);
+				r = glo->targ->regs.get_rip();
 				glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
 						r->name.c_str(), (unsigned int)r->val );
 				gtk_widget_queue_draw( glo->tlisr );
@@ -106,6 +132,11 @@ aname = gtk_action_get_name( action );
 int get = 0;
 switch	( aname[0] )
 	{
+	case 'f' :			// file
+		switch	( aname[1] )
+			{
+			case 'c' : glo->t.clear();					break;
+			} break;
 	case 'r' :			// run
 		switch	( aname[1] )
 			{
@@ -120,7 +151,7 @@ switch	( aname[0] )
 	case 's' :			// steps
 		switch	( aname[1] )
 			{
-			case 'i' : glo->dad->send_cmd("-exec-step-instruction\n");   break;
+			case 'i' : glo->dad->send_cmd("-exec-step-instruction\n");	break;
 			case 'v' : glo->dad->send_cmd("-exec-next-instruction\n");	break;
 			case 'o' : glo->dad->send_cmd("-exec-finish\n");		break;
 			} get++; break;
@@ -129,6 +160,12 @@ switch	( aname[0] )
 			{
 			case 't' : glo->dad->send_cmd("-break-insert main\n"); break;
 			case 'e' : break;
+			} break;
+	case 'e' :			// experimental
+		switch	( aname[3] )
+			{
+			case 'a' : expa( glo ); break;
+			case 'b' : expb( glo ); break;
 			} break;
 	default :
 		glo->t.printf("action %s\n", aname );
@@ -200,7 +237,8 @@ static GtkActionEntry ui_entries[] = {
   { "RunMenu", NULL, 	"_Run" },
   { "BreakMenu", NULL, 	"_Breakpoints" },
   // name,  stock id,   label, accel, tooltip, callback
-  { "open", 		NULL, "Open",			"<control>O",	NULL, G_CALLBACK(action_call) },
+  { "fopn", 		NULL, "Open",			"<control>O",	NULL, G_CALLBACK(action_call) },
+  { "fclr", 		NULL, "Clear Console",		"<control>K",	NULL, G_CALLBACK(action_call) },
   { "quit", 		NULL, "Quit",			"<alt>F4", 	NULL, G_CALLBACK(action_call) },
   { "res", 		NULL, "Restart",		"<shift>F5",	NULL, G_CALLBACK(action_call) },
   { "run", 		NULL, "Run/Continue",		"F5",		NULL, G_CALLBACK(action_call) },
@@ -212,6 +250,8 @@ static GtkActionEntry ui_entries[] = {
   { "rcu",	 	NULL, "Run to Cursor",		"<alt>F5",	NULL, G_CALLBACK(action_call) },
   { "btog", 		NULL, "Toggle Breakpoint",	"F9",		NULL, G_CALLBACK(action_call) },
   { "bena",	 	NULL, "Enable/Disable Break",	"<control>F9",	NULL, G_CALLBACK(action_call) },
+  { "expa",	 	NULL, "Exp A",			"<control>A",	NULL, G_CALLBACK(action_call) },
+  { "expb",	 	NULL, "Exp B",			"<control>B",	NULL, G_CALLBACK(action_call) },
 };
 
 // menu descriptions
@@ -219,7 +259,8 @@ static const gchar * ui_xml =
 "<ui>"
 "  <menubar name='MenuBar'>"
 "    <menu action='FileMenu'>"
-"      <menuitem action='open'/>"
+"      <menuitem action='fopn'/>"
+"      <menuitem action='fclr'/>"
 "      <menuitem action='quit'/>"
 "    </menu>"
 "    <menu action='RunMenu'>"
@@ -234,6 +275,8 @@ static const gchar * ui_xml =
 "    <menu action='BreakMenu'>"
 "      <menuitem action='btog'/>"
 "      <menuitem action='bena'/>"
+"      <menuitem action='expa'/>"
+"      <menuitem action='expb'/>"
 "    </menu>"
 "  </menubar>"
 "</ui>";

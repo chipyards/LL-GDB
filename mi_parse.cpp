@@ -5,6 +5,7 @@
 using namespace std;
 #include <string>
 #include <vector>
+#include <map>
 
 #include "target.h"
 #include "mi_parse.h"
@@ -208,17 +209,6 @@ return 0;
 
 // formatter un dump texte indente, en fonction de la valeur retournee par mi_parse::proc1char()
 // seulement si celle-ci est positive - retourne le nombre de chars mis dans buf
-	/*	0 : R.A.S.
-		1 : fin de valeur
-		2 : debut de conteneur nomme
-		3 : debut de conteneur anonyme
-		4 : fin de conteneur nomme
-		5 : fin de conteneur anonyme
-		6 : debut de conteneur report
-		7 : fin de conteneur report vide
-		8 : fin de conteneur report
-		9 : fin de stream-output
-	*/
 int mi_parse::dump( int retval, char * buf, int size )
 {
 int pos = 0;
@@ -268,25 +258,100 @@ return pos;
 }
 
 // extraire et ranger les donnees dans la target, en fonction de la valeur retournee par mi_parse::proc1char()
+	/*	0 : R.A.S.
+		1 : fin de valeur
+		2 : debut de conteneur nomme
+		3 : debut de conteneur anonyme
+		4 : fin de conteneur nomme
+		5 : fin de conteneur anonyme
+		6 : debut de conteneur report
+		7 : fin de conteneur report vide
+		8 : fin de conteneur report
+		9 : fin de stream-output
+	*/
 int mi_parse::extract( int retval, target * targ )
 {
+static asmline curasm;
+static string relfile;
+static string absfile;
+static int curline0 = -1;
+static int curline1;
+
 int ss = stac.size();
 switch	( retval )
 	{
 	case 1: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )	// short circuit eval ;-)
 			targ->regs.add_reg_name( val );
+		else if	( ( ss ) && ( stac.back().nam == string("src_and_asm_line") ) )
+			{
+			if	( nam == string("line") )
+				{
+				if	( curline0 < 0 )
+					curline0 = curline1 = strtoul( val.c_str(), NULL, 10 );
+				else	curline1 = strtoul( val.c_str(), NULL, 10 );
+				}
+			else if	( nam == string("file") )
+				relfile = val;
+			else if	( nam == string("fullname") )
+				absfile = val;
+			}
 		else if	( ( ss >= 2 ) && ( stac[stac.size()-2].nam == string("register-values") ) )
 			{
 			if	( nam == string("number") ) targ->regs.set_reg_pos( val );
 			else if	( nam == string("value") )  targ->regs.set_reg_val( val );
 			}
+		else if	( ( ss >= 2 ) && (
+				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
+				( stac[stac.size()-2].nam == string("asm_insns") )
+				)
+			)
+			{
+			if	( nam == string("address") ) curasm.set_adr( val );
+			else if	( nam == string("opcodes") ) curasm.count_the_bytes( val );
+			else if	( nam == string("inst") ) curasm.asmsrc = val;
+			}
 		break;
 	case 2: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
 			targ->regs.start_reg_names();
 		break;
-	case 3: break;
+	case 3: if	( ( ss >= 2 ) && (
+				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
+				( stac[stac.size()-2].nam == string("asm_insns") )
+				)
+			)
+			curasm.init();
+		break;
 	case 4: break;
-	case 5: break;
+	case 5: if	( ( ss >= 2 ) && (
+				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
+				( stac[stac.size()-2].nam == string("asm_insns") )
+				)
+			)
+			{
+			if	( targ->asmmap.count(curasm.adr) )
+				{
+				}
+			else	{
+				if	( stac[stac.size()-2].nam == string("line_asm_insn") )
+					{
+					curasm.src0 = curline0;
+					curasm.src1 = curline1;
+					curline0 = -1;
+					if	( targ->filemap.count(relfile) == 0 )
+						{
+						srcfile curfile;
+						curfile.relpath = relfile;
+						curfile.abspath = absfile;
+						targ->filemap[relfile] = targ->filestock.size();
+						targ->filestock.push_back( curfile );
+						}
+					curasm.isrc = targ->filemap[relfile];
+					}
+				targ->asmmap[curasm.adr] = targ->asmstock.size();
+				targ->asmstock.push_back( curasm );
+				}
+			}
+		break;
 	case 6: break;
 	case 7: break;
 	case 8: break;
