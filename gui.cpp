@@ -39,6 +39,8 @@ glo->t.printf("%02dh%02dmn%02d\n", t->tm_hour, t->tm_min, t->tm_sec );
 }
 */
 
+void list_store_resize( GtkListStore * mod, unsigned int size );
+
 void expa( glostru * glo )
 {
 unsigned long long adr;
@@ -47,22 +49,29 @@ if	( adr )
 	{
 	char tbuf[64];
 	snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5\n",
-					(unsigned int)adr, 128 + (unsigned int)adr );
+					(unsigned int)adr, glo->exp_N + (unsigned int)adr );
+	glo->t.printf("> %s\n", tbuf );
 	glo->dad->send_cmd( tbuf );
 	}
 }
 
 void expb( glostru * glo )
 {
-glo->t.printf("voir stdout\n");
-printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmstock.size() );
+
+glo->t.printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmstock.size() );
 //for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
 //	glo->targ->asmstock[i].dump();
 for	( unsigned int i = 0; i < glo->targ->filestock.size(); ++i )
-	printf("%s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
-unsigned int ilis = glo->targ->add_listing( glo->targ->regs.get_rip()->val );
-if	( ilis >= 0 )
-	glo->targ->dump_listing( ilis );
+	printf("fichier src : %s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
+glo->ilist = glo->targ->add_listing( glo->targ->regs.get_rip()->val );
+if	( glo->ilist >= 0 )
+	{
+	unsigned int qlist = glo->targ->liststock[glo->ilist].lines.size();
+	glo->t.printf("%d listing lines\n", qlist );
+	// glo->t.printf("dump: voir stdout\n");
+	// glo->targ->dump_listing( glo->ilist );
+	list_store_resize( glo->tmodl, qlist );
+	}
 }
 
 /** ============================ call backs ======================= */
@@ -99,7 +108,7 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 		continue;
 	else if	( retval < 0 )
 		{
-		glo->t.printf("Err %d\n", -retval );
+		glo->t.printf("Err %d\n", -retval ); break;
 		}
 	else	{
 		if	( ( tog ) || ( retval == 9 ) )
@@ -108,9 +117,10 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 				glo->t.printf("%s\n", tbuf );
 			}
 		if	( ( retval == 9 ) && ( glo->mipa->nam.c_str()[0] == '(' ) )
-			{			// ici petit report de debug
+			{
 			if	( glo->targ->regs.regs.size() >= 9 )
 				{
+				/* ici petit report de debug
 				registro * r;
 				r = glo->targ->regs.get_rsp();
 				glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
@@ -118,7 +128,9 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 				r = glo->targ->regs.get_rip();
 				glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
 						r->name.c_str(), (unsigned int)r->val );
+				*/
 				gtk_widget_queue_draw( glo->tlisr );
+				gtk_widget_queue_draw( glo->tlisl );
 				}
 			}
 		glo->mipa->extract( retval, glo->targ );
@@ -179,7 +191,68 @@ if	( get )
 	}
 }
 
-void regname_data_call( GtkTreeViewColumn * tree_column,	// sert pas !
+/** ================= Gtk Tree View call backs ======================= */
+
+// N.B.
+// on peut identifier la treeview avec gtk_tree_view_column_get_tree_view()
+// on peut identifier la colonne avec gtk_tree_view_column_get_title ()
+
+void disa_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo )
+{
+listing * list;
+const char *col;
+unsigned int i;
+int ref;
+char text[128];
+// recuperer le listing associe
+if	( glo->ilist < glo->targ->liststock.size() )
+	list = &(glo->targ->liststock[glo->ilist]);
+else	{
+	g_object_set( rendy, "text", "no data", NULL );
+	return;
+	}
+// recuperer notre index dans la colonne 0 du model
+gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
+// identifier la colonne
+col = gtk_tree_view_column_get_title( tree_column );
+// recuperer la reference codee de ligne dans l'objet target
+if	( i < list->lines.size() )
+	ref = list->lines[i];
+else	ref = 0;
+// decoder
+if	( ref < 0 )
+	{		// ligne de code source
+	unsigned int ilin = listing::decode_line_number(ref);
+	unsigned int ifil = listing::decode_file_index(ref);
+	if	( col[0] == 'A' )
+		{
+		snprintf( text, sizeof(text), "%d", ilin );
+		g_object_set( rendy, "text", text, NULL );
+		}
+	else if	( col[0] == 'C' )
+		{
+		g_object_set( rendy, "text", glo->targ->filestock[ifil].relpath.c_str(), NULL );
+		}
+	}
+else	{		// ligne asm
+	asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
+	if	( col[0] == 'A' )
+		{
+		snprintf( text, sizeof(text), "%08X", (unsigned int)daline->adr );
+		g_object_set( rendy, "text", text, NULL );
+		}
+	else if	( col[0] == 'C' )
+		{
+		g_object_set( rendy, "text", daline->asmsrc.c_str(), NULL );
+		}
+	}
+}
+
+void regname_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,
                      GtkTreeIter       * iter,
@@ -189,10 +262,9 @@ unsigned int i;
 const char *text;
 // recuperer notre index dans la colonne 0 du model
 gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
+// recuperer la donnee dans l'objet target
 if	( i < glo->targ->regs.regs.size() )
-	{
 	text = glo->targ->regs.regs[i].name.c_str();
-	}
 else	text = "?";
 g_object_set( rendy, "text", text, NULL );
 }
@@ -312,6 +384,72 @@ return labar;
 
 /** ============================ widgets ======================= */
 
+void list_store_resize( GtkListStore * mod, unsigned int size )
+{	// modele minimal, 1 colonne de type int
+GtkTreeIter curiter;
+gtk_list_store_clear( mod );
+for ( unsigned int i = 0; i < size; i++ )
+    {
+    gtk_list_store_append( mod, &curiter );
+    gtk_list_store_set( mod, &curiter, 0, i, -1 );
+    }
+}
+
+// Create a listing view
+GtkWidget * mk_list_view( glostru * glo )
+{
+GtkWidget *curwidg;
+GtkCellRenderer *renderer;
+GtkTreeViewColumn *curcol;
+GtkTreeSelection* cursel;
+
+// le modele : minimal, 1 colonne de type int
+glo->tmodl = gtk_list_store_new( 1, G_TYPE_INT );
+list_store_resize( glo->tmodl, 1 );
+
+// la vue
+curwidg = gtk_tree_view_new();
+
+// la colonne nom de registre, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, "Address" );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)disa_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+
+// la colonne valeur, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, "Code" );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)disa_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+
+// configurer la selection
+cursel = gtk_tree_view_get_selection( (GtkTreeView*)curwidg );
+gtk_tree_selection_set_mode( cursel, GTK_SELECTION_NONE );
+
+// connecter modele
+gtk_tree_view_set_model( (GtkTreeView*)curwidg, GTK_TREE_MODEL( glo->tmodl ) );
+
+// Change default font throughout the widget
+PangoFontDescription * font_desc;
+font_desc = pango_font_description_from_string("Monospace 10");
+gtk_widget_modify_font( curwidg, font_desc );
+pango_font_description_free( font_desc );
+
+return(curwidg);
+}
+
 // Create the register view
 GtkWidget * mk_reg_view( glostru * glo )
 {
@@ -319,15 +457,10 @@ GtkWidget *curwidg;
 GtkCellRenderer *renderer;
 GtkTreeViewColumn *curcol;
 GtkTreeSelection* cursel;
-GtkTreeIter curiter;
 
 // le modele : minimal, 1 colonne de type int
 glo->tmodr = gtk_list_store_new( 1, G_TYPE_INT );
-for ( int i = 0; i < 9; i++ )
-    {
-    gtk_list_store_append( glo->tmodr, &curiter );
-    gtk_list_store_set( glo->tmodr, &curiter, 0, i, -1 );
-    }
+list_store_resize( glo->tmodr, 9 );
 
 // la vue
 curwidg = gtk_tree_view_new();
@@ -396,7 +529,7 @@ gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
 gtk_signal_connect( GTK_OBJECT(curwidg), "destroy",
                     GTK_SIGNAL_FUNC( gtk_main_quit ), NULL );
 
-gtk_window_set_title( GTK_WINDOW(curwidg), "JLNs Transzkrypt" );
+gtk_window_set_title( GTK_WINDOW(curwidg), "EasyGDB" );
 
 gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 2 );
 glo->wmain = curwidg;
@@ -451,7 +584,12 @@ curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notr ), curwidg, gtk_label_new("Disassembly") );
 gtk_widget_set_size_request (curwidg, 200, 100);
-glo->scw3 = curwidg;
+glo->scwl = curwidg;
+
+curwidg = mk_list_view( glo );
+gtk_container_add( GTK_CONTAINER( glo->scwl ), curwidg );
+glo->tlisl = curwidg;
+
 
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
@@ -509,11 +647,15 @@ if	( argc > 1 )
 	glo->t.printf("Error daddy %d\n", retval );
 	}
 else	return 1;
+if	( argc > 2 )
+	glo->exp_N = atoi( argv[2] );
+else	glo->exp_N = 128;
 
 // tentative de demarrage auto
 glo->dad->send_cmd("-gdb-set new-console on\n");
 glo->dad->send_cmd("-data-list-register-names\n");
 glo->dad->send_cmd("-exec-run --start\n");
+glo->dad->send_cmd("-data-list-register-values x\n");
 
 gtk_main();
 

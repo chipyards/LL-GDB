@@ -11,7 +11,9 @@ GtkListStore *        tmodr;	// list model
 GtkWidget *           tlisr;	// tree view used as list view
 GtkWidget *         scw2;	// scrollable window for stack
 GtkWidget *       notr;		// right notebook
-GtkWidget *         scw3;	// scrollable window for disassembly
+GtkWidget *         scwl;	// scrollable window for disassembly
+GtkListStore *        tmodl;	// list model
+GtkWidget *           tlisl;	// tree view used as list view
 GtkWidget *         scw4;	// scrollable window for memory
 GtkWidget *     wtran;		// transcript window
 GtkWidget *   mbar;		// horizontal menu
@@ -25,5 +27,8 @@ transzcript t;
 daddy * dad;
 mi_parse * mipa;
 target * targ;
+unsigned int ilist;
+
+unsigned int exp_N;		// entier pour experiences
 
 } glostru;

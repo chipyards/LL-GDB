@@ -112,6 +112,14 @@ map <unsigned long long, unsigned int> asmmap;
 vector <srcfile> filestock;
 map <string, unsigned int> filemap;
 vector <listing> liststock;
+// constructeur
+target() {		// preparer une ligne pour affichage erreur
+	asmline badline;
+	asmstock.push_back( badline );
+	asmstock.back().init();		// adr = 0 !
+	asmstock.back().asmsrc = string("EasyGDB NULL ERROR");
+	asmmap[0] = 0;
+	}
 // methodes
 int add_listing( unsigned long long adr );
 void dump_listing( unsigned int i );

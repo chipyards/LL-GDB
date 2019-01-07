@@ -1,5 +1,5 @@
 
-#define QRING	(1<<16)		// doit etre 1 puissance de 2
+#define QRING	(1<<18)		// doit etre 1 puissance de 2
 
 // le spawneur pour Windows
 class daddy {
