@@ -56,11 +56,13 @@ void expb( glostru * glo )
 {
 glo->t.printf("voir stdout\n");
 printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmstock.size() );
-for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
-	glo->targ->asmstock[i].dump();
+//for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
+//	glo->targ->asmstock[i].dump();
 for	( unsigned int i = 0; i < glo->targ->filestock.size(); ++i )
 	printf("%s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
-
+unsigned int ilis = glo->targ->add_listing( glo->targ->regs.get_rip()->val );
+if	( ilis >= 0 )
+	glo->targ->dump_listing( ilis );
 }
 
 /** ============================ call backs ======================= */

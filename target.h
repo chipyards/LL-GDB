@@ -86,19 +86,20 @@ string abspath;
 };
 
 class listing {			// a disassembly listing ready for display (mixed src-asm)
+public:
 unsigned long long adr0;	// begin address
 unsigned long long adr1;	// end address (excluded)
 vector <int> lines;		// encoded line references
 				//	>= 0 : index in asmstock
 				//	<  0 : combined index-in-filestock and line-number-in-file
 // methods
-unsigned int decode_file_index( unsigned int ref ) {
+static unsigned int decode_file_index( unsigned int ref ) {
 	return ( ref >> 16 ) & 0x7FFF;
 	};
-unsigned int decode_line_number( unsigned int ref ) {
+static unsigned int decode_line_number( unsigned int ref ) {
 	return ref & 0xFFFF;
 	};
-int encode_ref( unsigned int file_index, unsigned int line_number ) {
+static int encode_ref( unsigned int file_index, unsigned int line_number ) {
 	return ( line_number & 0xFFFF ) | ( file_index << 16 ) | 0x80000000;
 	};
 };
@@ -113,5 +114,6 @@ map <string, unsigned int> filemap;
 vector <listing> liststock;
 // methodes
 int add_listing( unsigned long long adr );
+void dump_listing( unsigned int i );
 };
 
