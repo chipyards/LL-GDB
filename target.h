@@ -123,5 +123,8 @@ target() {		// preparer une ligne pour affichage erreur
 // methodes
 int add_listing( unsigned long long adr );
 void dump_listing( unsigned int i );
+unsigned long long get_ip() {
+	return regs.get_rip()->val;
+	}
 };
 

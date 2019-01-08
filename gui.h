@@ -1,3 +1,4 @@
+#define IP_COLOR "#FFEE55"
 
 typedef struct
 {
@@ -27,8 +28,10 @@ transzcript t;
 daddy * dad;
 mi_parse * mipa;
 target * targ;
-unsigned int ilist;
+unsigned int ilist;		// indice du listing courant
+unsigned int ip_in_list;	// indice de la ligne de eip dans le listing courant
 
-unsigned int exp_N;		// entier pour experiences
+int option_child_console;	// pour debug d'un prog qui utilise stdout et/ou stdin
+unsigned int exp_N;		// entier generique pour experiences
 
 } glostru;

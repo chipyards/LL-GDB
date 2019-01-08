@@ -40,11 +40,12 @@ glo->t.printf("%02dh%02dmn%02d\n", t->tm_hour, t->tm_min, t->tm_sec );
 */
 
 void list_store_resize( GtkListStore * mod, unsigned int size );
+unsigned int list_store_cnt( GtkListStore * mod );
 
 void expa( glostru * glo )
 {
 unsigned long long adr;
-adr = glo->targ->regs.get_rip()->val;
+adr = glo->targ->get_ip();
 if	( adr )
 	{
 	char tbuf[64];
@@ -63,7 +64,7 @@ glo->t.printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmsto
 //	glo->targ->asmstock[i].dump();
 for	( unsigned int i = 0; i < glo->targ->filestock.size(); ++i )
 	printf("fichier src : %s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
-glo->ilist = glo->targ->add_listing( glo->targ->regs.get_rip()->val );
+glo->ilist = glo->targ->add_listing( glo->targ->get_ip() );
 if	( glo->ilist >= 0 )
 	{
 	unsigned int qlist = glo->targ->liststock[glo->ilist].lines.size();
@@ -71,6 +72,7 @@ if	( glo->ilist >= 0 )
 	// glo->t.printf("dump: voir stdout\n");
 	// glo->targ->dump_listing( glo->ilist );
 	list_store_resize( glo->tmodl, qlist );
+	glo->t.printf("%d tree model rows\n", list_store_cnt( glo->tmodl ) );
 	}
 }
 
@@ -131,6 +133,16 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 				*/
 				gtk_widget_queue_draw( glo->tlisr );
 				gtk_widget_queue_draw( glo->tlisl );
+				// scroll sur ip
+				GtkTreePath * lepath;
+				lepath = gtk_tree_path_new_from_indices( glo->ip_in_list, -1 );
+				gtk_tree_view_scroll_to_cell( (GtkTreeView *)glo->tlisl,
+				lepath,	// GtkTreePath *path,
+				NULL, 	// *column,
+				TRUE,	// use_align,
+				0.5,	// row_align,
+				0.0 );	// col_align
+				gtk_tree_path_free( lepath );
 				}
 			}
 		glo->mipa->extract( retval, glo->targ );
@@ -242,8 +254,18 @@ else	{		// ligne asm
 	asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
 	if	( col[0] == 'A' )
 		{
-		snprintf( text, sizeof(text), "%08X", (unsigned int)daline->adr );
-		g_object_set( rendy, "text", text, NULL );
+		unsigned long long adr = daline->adr;
+		if	( adr == glo->targ->get_ip() )
+			{
+			snprintf( text, sizeof(text), "<span background=\"" IP_COLOR "\">%08X</span>",
+			(unsigned int)adr );
+			g_object_set( rendy, "markup", text, NULL );
+			glo->ip_in_list = i;
+			}
+		else	{
+			snprintf( text, sizeof(text), "%08X", (unsigned int)adr );
+			g_object_set( rendy, "text", text, NULL );
+			}
 		}
 	else if	( col[0] == 'C' )
 		{
@@ -259,7 +281,8 @@ void regname_data_call( GtkTreeViewColumn * tree_column,
                      glostru *         glo )
 {
 unsigned int i;
-const char *text;
+const char * text;
+const char * bgcolor;
 // recuperer notre index dans la colonne 0 du model
 gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
 // recuperer la donnee dans l'objet target
@@ -267,6 +290,9 @@ if	( i < glo->targ->regs.regs.size() )
 	text = glo->targ->regs.regs[i].name.c_str();
 else	text = "?";
 g_object_set( rendy, "text", text, NULL );
+if	( i == glo->targ->regs.iip ) bgcolor = IP_COLOR;
+else	bgcolor = "#DDDDDD";
+g_object_set( rendy, "cell-background", bgcolor, "cell-background-set", TRUE, NULL );
 }
 
 void regval_data_call( GtkTreeViewColumn * tree_column,
@@ -393,6 +419,21 @@ for ( unsigned int i = 0; i < size; i++ )
     gtk_list_store_append( mod, &curiter );
     gtk_list_store_set( mod, &curiter, 0, i, -1 );
     }
+}
+
+unsigned int list_store_cnt( GtkListStore * mod )
+{
+GtkTreeIter curiter;
+GtkTreePath * curpath;
+int * indices;
+int depth;
+gtk_list_store_append( mod, &curiter );
+curpath = gtk_tree_model_get_path( (GtkTreeModel *)mod, &curiter );
+gtk_list_store_remove ( mod, &curiter );
+indices = gtk_tree_path_get_indices_with_depth( curpath, &depth );
+gtk_tree_path_free( curpath );
+if	( depth == 1 )	return indices[0];
+else			return -depth;
 }
 
 // Create a listing view
@@ -647,12 +688,23 @@ if	( argc > 1 )
 	glo->t.printf("Error daddy %d\n", retval );
 	}
 else	return 1;
+
+// option de CLI
+glo->option_child_console = 1;
+glo->exp_N = 512;
 if	( argc > 2 )
-	glo->exp_N = atoi( argv[2] );
-else	glo->exp_N = 128;
+	{
+	if	( argv[2][0] == '-' )
+		glo->option_child_console = 0;
+	else	glo->exp_N = atoi( argv[2] );
+	}
+if	( glo->exp_N == 0 )
+	glo->exp_N = 16;
+
 
 // tentative de demarrage auto
-glo->dad->send_cmd("-gdb-set new-console on\n");
+if	( glo->option_child_console )
+	glo->dad->send_cmd("-gdb-set new-console on\n");
 glo->dad->send_cmd("-data-list-register-names\n");
 glo->dad->send_cmd("-exec-run --start\n");
 glo->dad->send_cmd("-data-list-register-values x\n");
