@@ -68,3 +68,26 @@ for	( i = 0; i < liststock[ilist].lines.size(); ++i )
 		}
 	}
 }
+
+// chercher un index dans le listing (-1 si echec)
+// on cherche soit :
+//	une ligne asm de asmstock dont on a eventuellement trouve l'index dans asmmap
+//	une ligne de code source qu'on a trouve dans un fichier source
+// recherche par brute-force car on ne peut pas emettre d'hypothese sur l'ordre des index
+int listing::search_line( int index, unsigned int hint )
+{
+unsigned int i;
+if	( hint >= lines.size() )
+	hint = 0;
+for	( i = hint; i < lines.size(); ++i )
+	{
+	if	( lines[i] == index )
+		return (int)i;
+	}
+for	( i = 0; i < hint; ++i )
+	{
+	if	( lines[i] == index )
+		return (int)i;
+	}
+return -1;
+}

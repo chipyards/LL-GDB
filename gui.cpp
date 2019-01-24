@@ -42,6 +42,15 @@ glo->t.printf("%02dh%02dmn%02d\n", t->tm_hour, t->tm_min, t->tm_sec );
 void list_store_resize( GtkListStore * mod, unsigned int size );
 unsigned int list_store_cnt( GtkListStore * mod );
 
+// envoyer une commande a GDB, avec echo optionnel dans le transcript (N.B. LF sera ajoute automatiquement)
+void send_cmd( glostru * glo, const char * cmd )
+{
+if	( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog) ) )
+	glo->t.printf("> %s\n", cmd );
+glo->dad->send_cmd( cmd );
+glo->dad->send_cmd( "\n" );
+}
+
 void expa( glostru * glo )
 {
 unsigned long long adr;
@@ -49,12 +58,12 @@ adr = glo->targ->get_ip();
 if	( adr )
 	{
 	char tbuf[64];
-	snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5\n",
+	snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5",
 					(unsigned int)adr, glo->exp_N + (unsigned int)adr );
-	glo->t.printf("> %s\n", tbuf );
-	glo->dad->send_cmd( tbuf );
+	send_cmd( glo, tbuf );
 	}
 }
+
 
 void expb( glostru * glo )
 {
@@ -76,6 +85,41 @@ if	( glo->ilist >= 0 )
 	}
 }
 
+void update_disass( glostru * glo )
+{
+// notre ip est-il deja desassemble ? cherchons son index dans asmstock
+int ip_asm_line = glo->targ->get_ip_asm_line();
+if	( ip_asm_line >= 0 )
+	{
+	// glo->t.printf("line %d in asmstock\n", ip_asm_line );
+	// est-il dans le listing courant ?
+	int ip_in_list = glo->targ->liststock[0].search_line( ip_asm_line, glo->ip_in_list );
+	if	( ip_in_list >= 0 )
+		{
+		// glo->t.printf("line %d in list\n", ip_in_list );
+		glo->ip_in_list = ip_in_list;
+		// scroll sur ip
+		GtkTreePath * lepath;
+		lepath = gtk_tree_path_new_from_indices( glo->ip_in_list, -1 );
+		// char *pipo = gtk_tree_path_to_string( lepath );
+		// glo->t.printf( "scroll to %d (%s)\n", glo->ip_in_list, pipo );
+		gtk_tree_view_scroll_to_cell( (GtkTreeView *)glo->tlisl,
+			lepath,	// GtkTreePath *path,
+			NULL, 	// *column,
+			TRUE,	// use_align,
+			0.5,	// row_align,
+			0.0 );	// col_align
+		gtk_tree_path_free( lepath );
+		}
+	else	{
+		glo->t.printf("ici il faudrait completer le listing\n");
+		}
+	}
+else	{
+	glo->t.printf( "ici il faudrait completer le desassemblage\n");
+	}
+}
+
 /** ============================ call backs ======================= */
 
 gint close_event_call( GtkWidget *widget,
@@ -90,9 +134,7 @@ gtk_widget_destroy( glo->wmain );
 
 void cmd_call( GtkWidget *widget, glostru * glo )
 {
-glo->t.printf("> %s\n", gtk_entry_get_text( GTK_ENTRY(widget) ) );
-glo->dad->send_cmd( gtk_entry_get_text( GTK_ENTRY(widget) ) );
-glo->dad->send_cmd( "\n" );
+send_cmd( glo, gtk_entry_get_text( GTK_ENTRY(widget) ) );
 gtk_entry_set_text( GTK_ENTRY(widget), "" );
 }
 
@@ -103,49 +145,47 @@ char tbuf[1024];
 int d;
 int tog = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog) );
 
+// la boucle de lecture de la pipe de sortie de GDB
 while	( ( d = glo->dad->child_getc() ) >= 0 )
 	{
 	retval = glo->mipa->proc1char( d );
-	if	( retval == 0 )
+	if	( retval == 0 )				// 0 = un char banal, on continue
 		continue;
-	else if	( retval < 0 )
+	else if	( retval < 0 )				// <0 = erreur detectee par parseur de MI
 		{
 		glo->t.printf("Err %d\n", -retval ); break;
 		}
-	else	{
-		if	( ( tog ) || ( retval == 9 ) )
-			{
-			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
-				glo->t.printf("%s\n", tbuf );
-			}
-		if	( ( retval == 9 ) && ( glo->mipa->nam.c_str()[0] == '(' ) )
-			{
-			if	( glo->targ->regs.regs.size() >= 9 )
-				{
-				/* ici petit report de debug
-				registro * r;
-				r = glo->targ->regs.get_rsp();
-				glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
-						r->name.c_str(), (unsigned int)r->val );
-				r = glo->targ->regs.get_rip();
-				glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
-						r->name.c_str(), (unsigned int)r->val );
-				*/
-				gtk_widget_queue_draw( glo->tlisr );
-				gtk_widget_queue_draw( glo->tlisl );
-				// scroll sur ip
-				GtkTreePath * lepath;
-				lepath = gtk_tree_path_new_from_indices( glo->ip_in_list, -1 );
-				gtk_tree_view_scroll_to_cell( (GtkTreeView *)glo->tlisl,
-				lepath,	// GtkTreePath *path,
-				NULL, 	// *column,
-				TRUE,	// use_align,
-				0.5,	// row_align,
-				0.0 );	// col_align
-				gtk_tree_path_free( lepath );
+	else	{					// >0 = fin de quelque chose, a extraire pour peupler dans l'objet target
+		glo->mipa->extract( retval, glo->targ );
+		if	( retval == 9 )
+			{					// 9 = fin d'un report ==> action eventuelle sur GUI
+			if	( tog )
+				{	// dump du parseur (debug du debug)
+				if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
+					glo->t.printf("%s\n", tbuf );
+				}
+			if	( glo->mipa->nam.c_str()[0] == '(' )
+				{		// prompt de GDB
+				if	( glo->targ->regs.regs.size() >= 9 )	// sauter la phase de demarrage a froid
+					{
+					/* ici petit report de debug du debug
+					registro * r;
+					r = glo->targ->regs.get_rsp();
+					glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
+							r->name.c_str(), (unsigned int)r->val );
+					r = glo->targ->regs.get_rip();
+					glo->t.printf( "%c %s = %08x\n", (r->changed)?':':' ',
+							r->name.c_str(), (unsigned int)r->val );
+					*/
+					gtk_widget_queue_draw( glo->tlisr );
+					if	( glo->targ->liststock.size() >= 1 )	// sauter la phase de demarrage a froid
+						{
+						update_disass( glo );
+						gtk_widget_queue_draw( glo->tlisl );
+						}
+					}
 				}
 			}
-		glo->mipa->extract( retval, glo->targ );
 		}
 	}
 return( -1 );
@@ -161,30 +201,27 @@ switch	( aname[0] )
 	case 'f' :			// file
 		switch	( aname[1] )
 			{
-			case 'c' : glo->t.clear();					break;
+			case 'c' : glo->t.clear();				break;
 			} break;
 	case 'r' :			// run
 		switch	( aname[1] )
 			{
-			case 'e' : glo->dad->send_cmd("-gdb-set new-console on\n");
-				   glo->dad->send_cmd("-data-list-register-names\n");
-				   glo->dad->send_cmd("-exec-run --start\n");
-				   break;
-			case 'u' : glo->dad->send_cmd("-exec-continue\n");		break;
-			case 'p' : glo->dad->send_cmd("-exec-interrupt\n");		break;
+			case 'e' : send_cmd( glo, "-exec-run --start");		break;
+			case 'u' : send_cmd( glo, "-exec-continue");		break;
+			case 'p' : send_cmd( glo, "-exec-interrupt");		break;
 			case 'c' : break;
 			} get++; break;
 	case 's' :			// steps
 		switch	( aname[1] )
 			{
-			case 'i' : glo->dad->send_cmd("-exec-step-instruction\n");	break;
-			case 'v' : glo->dad->send_cmd("-exec-next-instruction\n");	break;
-			case 'o' : glo->dad->send_cmd("-exec-finish\n");		break;
+			case 'i' : send_cmd( glo, "-exec-step-instruction");	break;
+			case 'v' : send_cmd( glo, "-exec-next-instruction");	break;
+			case 'o' : send_cmd( glo, "-exec-finish");		break;
 			} get++; break;
 	case 'b' :			// break
 		switch	( aname[1] )
 			{
-			case 't' : glo->dad->send_cmd("-break-insert main\n"); break;
+			case 't' : send_cmd( glo, "-break-insert main");	break;
 			case 'e' : break;
 			} break;
 	case 'e' :			// experimental
@@ -199,7 +236,7 @@ switch	( aname[0] )
 if	( get )
 	{
 	glo->targ->regs.reset_reg_changes();
-	glo->dad->send_cmd("-data-list-register-values x\n");
+	send_cmd( glo, "-data-list-register-values x");
 	}
 }
 
@@ -260,7 +297,7 @@ else	{		// ligne asm
 			snprintf( text, sizeof(text), "<span background=\"" IP_COLOR "\">%08X</span>",
 			(unsigned int)adr );
 			g_object_set( rendy, "markup", text, NULL );
-			glo->ip_in_list = i;
+			// glo->ip_in_list = i;  // ne marche que si ip est dans la fenetre :-((
 			}
 		else	{
 			snprintf( text, sizeof(text), "%08X", (unsigned int)adr );
@@ -664,7 +701,7 @@ glo->ecmd = curwidg;
 // check bouton
 curwidg = gtk_check_button_new_with_label ("full dump");
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
-gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( curwidg ), FALSE );
+gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( curwidg ), TRUE );
 glo->btog = curwidg;
 
 /* simple bouton */
@@ -704,10 +741,10 @@ if	( glo->exp_N == 0 )
 
 // tentative de demarrage auto
 if	( glo->option_child_console )
-	glo->dad->send_cmd("-gdb-set new-console on\n");
-glo->dad->send_cmd("-data-list-register-names\n");
-glo->dad->send_cmd("-exec-run --start\n");
-glo->dad->send_cmd("-data-list-register-values x\n");
+	send_cmd( glo, "-gdb-set new-console on");
+send_cmd( glo, "-data-list-register-names\n");
+send_cmd( glo, "-exec-run --start\n");
+send_cmd( glo, "-data-list-register-values x\n");
 
 gtk_main();
 

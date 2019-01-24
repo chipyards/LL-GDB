@@ -102,6 +102,7 @@ static unsigned int decode_line_number( unsigned int ref ) {
 static int encode_ref( unsigned int file_index, unsigned int line_number ) {
 	return ( line_number & 0xFFFF ) | ( file_index << 16 ) | 0x80000000;
 	};
+int search_line( int index, unsigned int hint );	// chercher un index dans le listing (-1 si echec)
 };
 
 class target {
@@ -126,5 +127,10 @@ void dump_listing( unsigned int i );
 unsigned long long get_ip() {
 	return regs.get_rip()->val;
 	}
+int get_ip_asm_line() {	// rend -1 si adr non desassemblee
+	if	( asmmap.count(get_ip()) )
+		return (int)asmmap[get_ip()];
+	else	return -1;
+	};
 };
 
