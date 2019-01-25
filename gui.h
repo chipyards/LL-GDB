@@ -20,7 +20,10 @@ GtkWidget *     wtran;		// transcript window
 GtkWidget *   mbar;		// horizontal menu
 GtkWidget *   hbut;		// horizontal box
 GtkWidget *     ecmd;		// text entry
-GtkWidget *     btog;		// button
+GtkWidget *     btog1;		// button
+GtkWidget *     btog2;		// button
+GtkWidget *     btog3;		// button
+GtkWidget *     btog4;		// button
 GtkWidget *     bqui;		// button
 
 transzcript t;
@@ -28,6 +31,8 @@ transzcript t;
 daddy * dad;
 mi_parse * mipa;
 target * targ;
+int timor;			// timer, unite = idle loop = 31ms env. (30 fps)
+
 unsigned int ilist;		// indice du listing courant
 unsigned int ip_in_list;	// indice de la ligne de eip dans le listing courant
 

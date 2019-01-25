@@ -17,7 +17,7 @@ unsigned int ibp;
 unsigned int iip;
 unsigned int pos;	// indice de registre (temporaire, pour parseur)
 // constructeur
-regbank() : isp(0), ibp(0), iip(0) {};
+regbank() : isp(0), ibp(0), iip(0) { regs.push_back( registro( string( "invalid") ) ); };
 // methodes
 void start_reg_names() { regs.clear(); };
 void add_reg_name( string val ) {
@@ -120,8 +120,11 @@ target() {		// preparer une ligne pour affichage erreur
 	asmstock.back().init();		// adr = 0 !
 	asmstock.back().asmsrc = string("EasyGDB NULL ERROR");
 	asmmap[0] = 0;
+	listing badlist;
+	liststock.push_back( badlist );
 	}
 // methodes
+int fill_listing( unsigned int ilist, unsigned long long adr );
 int add_listing( unsigned long long adr );
 void dump_listing( unsigned int i );
 unsigned long long get_ip() {

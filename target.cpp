@@ -5,19 +5,19 @@ using namespace std;
 
 #include "target.h"
 
-// retourne index du listing ou -1 si echec (asm non dispo)
-int target::add_listing( unsigned long long adr )
+// remplir un listing a partir de l'adresse donnee, jusqu'a epuisement du disass
+// le contenu anterieur est ecrase
+// si le disass n'est pas dispo le listing est laisse vide
+// si ilist ne pointe pas sur un listing, retour -1
+int target::fill_listing( unsigned int ilist, unsigned long long adr )
 {
-if	( asmmap.count(adr) == 0 )
+if	( ilist >= liststock.size() )
 	return -1;
 unsigned int ia, delta;
 int src0, srci;
 asmline * daline;
-// creer listing vierge
-listing newlist;
-listing * curlist;
-liststock.push_back( newlist );
-curlist = &(liststock.back());
+listing * curlist = &(liststock[ilist]);
+curlist->lines.clear();
 curlist->adr0 = adr;
 while	( asmmap.count(adr) )
 	{
@@ -43,10 +43,23 @@ while	( asmmap.count(adr) )
 	}
 // le listing est fini
 curlist->adr1 = adr;
-return liststock.size() - 1;
+return 0;
 }
 
-void target::dump_listing( unsigned int ilist )
+// retourne index du listing ou -1 si echec
+int target::add_listing( unsigned long long adr )		// not tested
+{
+if	( asmmap.count(adr) == 0 )
+	return -1;
+// creer listing vierge
+listing newlist;
+liststock.push_back( newlist );
+unsigned int ilist = liststock.size() - 1;
+fill_listing( ilist, adr );
+return (int)ilist;
+}
+
+void target::dump_listing( unsigned int ilist )	// unsecure !!!
 {
 unsigned int i, ifil, ilin;
 int ref;
