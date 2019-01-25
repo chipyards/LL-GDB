@@ -81,8 +81,14 @@ void set_adr( string val ) {
 
 class srcfile {		// one source file
 public:
+int status;		// 0 = init, -1 = echec, 1 = lecture ok
 string relpath;
 string abspath;
+vector <string> lines;
+// constructeur
+srcfile() : status(0) {};
+// methodes
+void readfile();	// remplir lines[]
 };
 
 class listing {			// a disassembly listing ready for display (mixed src-asm)
@@ -135,5 +141,19 @@ int get_ip_asm_line() {	// rend -1 si adr non desassemblee
 		return (int)asmmap[get_ip()];
 	else	return -1;
 	};
+const char * get_src_line( unsigned int ifil, unsigned int ilin ) {
+	if	( ifil < filestock.size() )
+		{
+		if	( --ilin < filestock[ifil].lines.size() )
+			return( filestock[ifil].lines[ilin].c_str() );
+		else	{
+			// static char tbuf[64];
+			// snprintf( tbuf, sizeof(tbuf), "invalid src line, status %d", filestock[ifil].status );
+			// return tbuf;
+			return filestock[ifil].relpath.c_str();
+			}
+		}
+	else	return "(invalid src file)";
+	}
 };
 

@@ -61,7 +61,7 @@ refresh( glo );
 
 void expb( glostru * glo )
 {
-
+send_cmd( glo, "-thread-info");
 }
 
 void update_disass( glostru * glo )
@@ -119,9 +119,10 @@ if	( glo->targ->liststock[0].lines.size() < 1 )
 			if	( glo->targ->regs.regs.size() < 9 )
 				{ glo->timor = 60; send_cmd( glo, "-data-list-register-names"); }
 			else	{	// on a des noms de registres, lancer le prog pour avoir ip
-				glo->timor = 300;
+				glo->timor = 180;
 				if	( glo->option_child_console )
 					send_cmd( glo, "-gdb-set new-console on");
+				// send_cmd( glo, "-gdb-set mi-async on");	// marche PO sous windows
 				send_cmd( glo, "-exec-run --start");	// ici GDB met un bk sur main
 				send_cmd( glo, "-data-list-register-values x");
 				}
@@ -337,12 +338,12 @@ if	( ref < 0 )
 	unsigned int ifil = listing::decode_file_index(ref);
 	if	( col[0] == 'A' )
 		{
-		snprintf( text, sizeof(text), "%d", ilin );
+		snprintf( text, sizeof(text), "  %d", ilin );
 		g_object_set( rendy, "text", text, NULL );
 		}
 	else if	( col[0] == 'C' )
 		{
-		g_object_set( rendy, "text", glo->targ->filestock[ifil].relpath.c_str(), NULL );
+		g_object_set( rendy, "text", glo->targ->get_src_line( ifil, ilin ), NULL );
 		}
 	}
 else	{		// ligne asm

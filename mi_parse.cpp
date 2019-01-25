@@ -340,10 +340,12 @@ switch	( retval )
 					if	( targ->filemap.count(relfile) == 0 )
 						{
 						srcfile curfile;
-						curfile.relpath = relfile;
-						curfile.abspath = absfile;
 						targ->filemap[relfile] = targ->filestock.size();
 						targ->filestock.push_back( curfile );
+						targ->filestock.back().relpath = relfile;
+						targ->filestock.back().abspath = absfile;
+						if	( targ->filestock.back().status == 0 )
+							targ->filestock.back().readfile();
 						}
 					curasm.isrc = targ->filemap[relfile];
 					}

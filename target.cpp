@@ -3,6 +3,7 @@ using namespace std;
 #include <vector>
 #include <map>
 
+#include <string.h>
 #include "target.h"
 
 // remplir un listing a partir de l'adresse donnee, jusqu'a epuisement du disass
@@ -103,4 +104,30 @@ for	( i = 0; i < hint; ++i )
 		return (int)i;
 	}
 return -1;
+}
+
+// n'appeler cette methode que si status == 0
+void srcfile::readfile()
+{
+FILE * fil;
+fil = fopen( relpath.c_str(), "r" );
+if	( fil == NULL )
+	{
+	fil = fopen( abspath.c_str(), "r" );
+	if	( fil == NULL )
+		status = -1;
+	}
+if	( fil )
+	{
+	char lbuf[256]; unsigned int pos;
+	while	( fgets( lbuf, sizeof( lbuf ), fil ) )
+		{
+		pos = strlen( lbuf ) - 1;	// enlever line end et trailing blanc
+		while	( ( pos > 0 ) && ( lbuf[pos] <= ' ' ) )
+			lbuf[pos--] = 0;
+		lines.push_back( string( lbuf ) );
+		}
+	fclose( fil );
+	status = 1;
+	}
 }
