@@ -43,6 +43,19 @@ void list_store_resize( GtkListStore * mod, unsigned int size );
 unsigned int list_store_cnt( GtkListStore * mod );
 void refresh( glostru * glo );
 
+void some_stats( glostru * glo )
+{
+// d'abord un peu de stats
+glo->t.printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmstock.size() );
+//for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
+//	glo->targ->asmstock[i].dump();
+for	( unsigned int i = 0; i < glo->targ->filestock.size(); ++i )
+	printf("fichier src : %s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
+unsigned int qlist = glo->targ->liststock[glo->ilist].lines.size();
+glo->t.printf("%d listing lines\n", qlist );
+glo->t.printf("%d tree model rows\n", list_store_cnt( glo->tmodl ) );
+}
+
 
 // envoyer une commande a GDB, avec echo optionnel dans le transcript (N.B. LF sera ajoute automatiquement)
 void send_cmd( glostru * glo, const char * cmd )
@@ -61,9 +74,10 @@ refresh( glo );
 
 void expb( glostru * glo )
 {
-send_cmd( glo, "-thread-info");
+glo->targ->status = Ready;
 }
 
+// fonction a appeler chaque fois que ip a change
 void update_disass( glostru * glo )
 {
 // notre ip est-il deja desassemble ? cherchons son index dans asmstock
@@ -71,10 +85,20 @@ int ip_asm_line = glo->targ->get_ip_asm_line();
 if	( ip_asm_line >= 0 )
 	{
 	// glo->t.printf("line %d in asmstock\n", ip_asm_line );
-	// est-il dans le listing courant ?
+	// OUI alors est-il dans le listing courant ?
 	int ip_in_list = glo->targ->liststock[glo->ilist].search_line( ip_asm_line, glo->ip_in_list );
+	if	( ip_in_list < 0 )
+		{ // NON refaisons le listing (pour le moment on ne sait que travailler sur 1 seul)
+		// N.B. fill_listing ecrase le contenu anterieur
+		// ici ce serait interessant de voir si on ne peut pas plutot prolonger le listing
+		glo->targ->fill_listing( glo->ilist, glo->targ->get_ip() );
+		// on a besoin du compte des lignes pour mettre a jour le tree model
+		unsigned int qlist = glo->targ->liststock[glo->ilist].lines.size();
+		list_store_resize( glo->tmodl, qlist );
+		}
+	ip_in_list = glo->targ->liststock[glo->ilist].search_line( ip_asm_line, 0 );
 	if	( ip_in_list >= 0 )
-		{
+		{ // OUI alors le scroll doit marcher
 		// glo->t.printf("line %d in list\n", ip_in_list );
 		glo->ip_in_list = ip_in_list;
 		// scroll sur ip
@@ -90,12 +114,22 @@ if	( ip_asm_line >= 0 )
 			0.0 );	// col_align
 		gtk_tree_path_free( lepath );
 		}
-	else	{
-		glo->t.printf("ici il faudrait completer le listing\n");
-		}
 	}
-else	{
-	glo->t.printf( "ici il faudrait completer le desassemblage\n");
+else	{ // NON allons desassembler si possible
+	if	( glo->targ->status != Ready )
+		glo->t.printf( "il faut attendre pour desassembler\n");
+	else	{
+		unsigned long long adr;
+		adr = glo->targ->get_ip();
+		if	( adr )
+			{
+			char tbuf[64];
+			snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5",
+							(unsigned int)adr, glo->exp_N + (unsigned int)adr );
+			glo->timor = 60; send_cmd( glo, tbuf );
+			glo->targ->status = Disas;
+			}
+		}
 	}
 }
 
@@ -106,67 +140,18 @@ gtk_widget_queue_draw( glo->tlisl );
 gtk_widget_queue_draw( glo->tlisr );
 }
 
-// cette fonction pretend assurer les etapes de demarrage...en les testant a l'envers
-// on ne doit l'appeler que si glo->timor est nul
+// cette fonction pretend assurer les etapes de demarrage
+// on ne doit l'appeler que si glo->targ->status == Init
 void init_step( glostru *glo )
 {
-if	( glo->targ->liststock[0].lines.size() < 1 )
-	{			// listing vide ! a-t-on du disass ?
-	if	( glo->targ->asmmap.size() < 2 )
-		{		// pas de desass ! a-t-on une valeur plausible de ip ?
-		if	( (unsigned int)glo->targ->get_ip() == 0 )
-			{	// pas de ip ! a-t-on des noms de registres ?
-			if	( glo->targ->regs.regs.size() < 9 )
-				{ glo->timor = 60; send_cmd( glo, "-data-list-register-names"); }
-			else	{	// on a des noms de registres, lancer le prog pour avoir ip
-				glo->timor = 180;
-				if	( glo->option_child_console )
-					send_cmd( glo, "-gdb-set new-console on");
-				// send_cmd( glo, "-gdb-set mi-async on");	// marche PO sous windows
-				send_cmd( glo, "-exec-run --start");	// ici GDB met un bk sur main
-				send_cmd( glo, "-data-list-register-values x");
-				}
-			}
-		else	{	// on a un ip pour desassembler, alors on y va
-			unsigned long long adr;
-			adr = glo->targ->get_ip();
-			if	( adr )
-				{
-				char tbuf[64];
-				snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5",
-								(unsigned int)adr, glo->exp_N + (unsigned int)adr );
-				glo->timor = 60; send_cmd( glo, tbuf );
-				}
-			}
-		}
-	else	{		// on a du desass, faisons un listing
-		glo->t.printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmstock.size() );
-		//for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
-		//	glo->targ->asmstock[i].dump();
-		for	( unsigned int i = 0; i < glo->targ->filestock.size(); ++i )
-			printf("fichier src : %s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
-		glo->ilist = 0;		// pour le moment on ne sait que travailler sur 1 seul listing...
-					// glo->ilist = glo->targ->add_listing( glo->targ->get_ip() );
-		glo->targ->fill_listing( glo->ilist, glo->targ->get_ip() );
-		unsigned int qlist = glo->targ->liststock[glo->ilist].lines.size();
-		glo->t.printf("%d listing lines\n", qlist );
-		// glo->t.printf("dump: voir stdout\n");
-		// glo->targ->dump_listing( glo->ilist );
-		if	( qlist > 0 )
-			{
-			list_store_resize( glo->tmodl, qlist );
-			glo->t.printf("%d tree model rows\n", list_store_cnt( glo->tmodl ) );
-			init_step( glo );		// tres audacieuse recursion UWAGA !!!
-			}
-		else	{
-			// notre listing est encore vide, c'est ennuyeux on va boucler sur le disass..
-			// cependant notre list_store contien 1 ligne, et la datafunc saura afficher genre invalid
-			}
-		}
-	}
-else	{
-	// ben c'est bon on fait plus rien
-	}
+send_cmd( glo, "-data-list-register-names");
+if	( glo->option_child_console )
+	send_cmd( glo, "-gdb-set new-console on");
+// send_cmd( glo, "-gdb-set mi-async on");	// marche PO sous windows
+send_cmd( glo, "-exec-run --start");	// ici GDB met un bk sur main
+glo->targ->regs.reset_reg_changes();
+send_cmd( glo, "-data-list-register-values x");
+glo->targ->status = Registers;
 }
 
 /** ============================ call backs ======================= */
@@ -234,18 +219,27 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
 				glo->t.printf("%s\n", tbuf );
 			}
+		if	( ( !tog2 ) && ( !tog3 ) && ( retval == 1 ) )
+			{
+			// PROVISOAR juste pour lire un variable on les dumpe toutes c'est relou !
+			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
+				{
+				// "reason" devra etre interpretee par le parseur et reportee dans le status de la target
+				if	( strncmp( tbuf, "reason", 6 ) == 0 )
+					glo->t.printf("%s\n", tbuf );
+				}
+			}
 		}
-	}
-if	( glo->timor )
+	}	// while child_getc()
+if	( glo->targ->status != Ready  )
 	{
 	static GdkColor laranja = { 0, 0xFF00, 0xA000, 0x4000 };
 	gtk_widget_modify_base( glo->ecmd, GTK_STATE_NORMAL, &laranja );
-	--glo->timor;
+	if	( glo->targ->status == Init  )
+		init_step( glo );
 	}
 else	{
-	init_step( glo );
 	gtk_widget_modify_base( glo->ecmd, GTK_STATE_NORMAL, NULL );
-	refresh( glo );
 	}
 return( -1 );
 }
@@ -296,6 +290,7 @@ if	( get )
 	{
 	glo->targ->regs.reset_reg_changes();
 	send_cmd( glo, "-data-list-register-values x");
+	glo->targ->status = Registers;
 	}
 }
 

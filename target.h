@@ -111,8 +111,11 @@ static int encode_ref( unsigned int file_index, unsigned int line_number ) {
 int search_line( int index, unsigned int hint );	// chercher un index dans le listing (-1 si echec)
 };
 
+typedef enum { Ready=0, Running=1, Disas=2, Registers=4, RAM=8, Init=0x1000 } status_enum;
+
 class target {
 public:
+status_enum status;
 regbank regs;
 vector <asmline> asmstock;
 map <unsigned long long, unsigned int> asmmap;
@@ -120,13 +123,13 @@ vector <srcfile> filestock;
 map <string, unsigned int> filemap;
 vector <listing> liststock;
 // constructeur
-target() {		// preparer une ligne pour affichage erreur
-	asmline badline;
+target() : status(Init) {
+	asmline badline;		// preparer une ligne pour affichage provisoire
 	asmstock.push_back( badline );
 	asmstock.back().init();		// adr = 0 !
-	asmstock.back().asmsrc = string("EasyGDB NULL ERROR");
+	asmstock.back().asmsrc = string("waiting for disassembly");
 	asmmap[0] = 0;
-	listing badlist;
+	listing badlist;		// avoir toujours au moins un listing, meme vide
 	liststock.push_back( badlist );
 	}
 // methodes

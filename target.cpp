@@ -123,7 +123,7 @@ if	( fil )
 	while	( fgets( lbuf, sizeof( lbuf ), fil ) )
 		{
 		pos = strlen( lbuf ) - 1;	// enlever line end et trailing blanc
-		while	( ( pos > 0 ) && ( lbuf[pos] <= ' ' ) )
+		while	( ( pos >= 0 ) && ( lbuf[pos] <= ' ' ) )
 			lbuf[pos--] = 0;
 		lines.push_back( string( lbuf ) );
 		}

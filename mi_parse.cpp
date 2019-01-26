@@ -321,7 +321,11 @@ switch	( retval )
 			)
 			curasm.init();
 		break;
-	case 4: break;
+	case 4: if	( ( ss ) && ( stac.back().nam == string("asm_insns") ) )
+			targ->status = (status_enum)(targ->status & (~Disas));
+		if	( ( ss ) && ( stac.back().nam == string("register-values") ) )
+			targ->status = (status_enum)(targ->status & (~Registers));
+		break;
 	case 5: if	( ( ss >= 2 ) && (
 				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
 				( stac[stac.size()-2].nam == string("asm_insns") )
