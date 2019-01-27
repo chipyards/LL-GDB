@@ -75,6 +75,17 @@ refresh( glo );
 void expb( glostru * glo )
 {
 glo->targ->status = Ready;
+glo->t.printf(
+"stop     238a |\xe2\x8e\x8a|\n"
+"continue 23EF |\xe2\x8f\xaf|\n"
+"record   23FA |\xe2\x8f\xba|\n"
+"fish eye 25C9 |\xe2\x97\x89|\n"
+"triangle 25B6 |\xe2\x96\xb6|\n"
+"triangle 25BA |" UTF8_TRIANGLE "|\n"
+"circle   25CF |" UTF8_CIRCLE "|\n"
+"circle   26AB |\xe2\x9a\xab|\n"
+"              |_|\n" );
+
 }
 
 // fonction a appeler chaque fois que ip a change
@@ -293,6 +304,57 @@ if	( get )
 	glo->targ->status = Registers;
 	}
 }
+/** ================= context menus call backs ======================= */
+
+static void disa_call_bk( GtkWidget *widget, glostru * glo )
+{
+glo->t.printf("disa_call_bk FIRED\n");
+}
+
+// une call back pour le right-clic
+gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo )
+{
+/* single click with the right mouse button? */
+if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
+	{
+	// glo->t.printf("right ");
+	// tentative d'identifier la row :
+        GtkTreePath *path;
+        if	( gtk_tree_view_get_path_at_pos( GTK_TREE_VIEW(curwidg),
+						event->x, event->y,
+						&path, NULL, NULL, NULL) )
+		{
+		// on a un path, on en extrait un indice
+		unsigned int * indices; int ref;
+		int depth;
+		indices = (unsigned int *)gtk_tree_path_get_indices_with_depth( path, &depth );
+		// ici on pourrait forcer la selection mais bof
+		gtk_tree_path_free(path);
+		// glo->t.printf( "d=%d, i=%d \n", depth, indices[0] );
+		// N.B. code ci-dessous a refactoriser vs disa_data_call()
+		// recuperer la reference codee de ligne dans l'objet target
+		listing * list = &(glo->targ->liststock[glo->ilist]);
+		if	( *indices < list->lines.size() )
+			ref = list->lines[*indices];
+		else	ref = 0;
+		// decoder
+		if	( ref < 0 )
+			{		// ligne de code source
+			glo->t.printf( "src line %u\n", listing::decode_line_number(ref) );
+			}
+		else	{		// ligne asm
+			unsigned long long adr = glo->targ->asmstock[(unsigned int)ref].adr;
+			glo->t.printf( "%08X\n", (unsigned int)adr );
+			}
+		gtk_menu_popup( (GtkMenu *)glo->mdisa, NULL, NULL, NULL, NULL, event->button, event->time );
+
+		}
+	return TRUE;			/* we handled this */
+	}
+return FALSE;				/* we did not handle this */
+}
+
+
 
 /** ================= Gtk Tree View call backs ======================= */
 
@@ -300,7 +362,7 @@ if	( get )
 // on peut identifier la treeview avec gtk_tree_view_column_get_tree_view()
 // on peut identifier la colonne avec gtk_tree_view_column_get_title ()
 
-void disa_data_call( GtkTreeViewColumn * tree_column,
+static void disa_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,
                      GtkTreeIter       * iter,
@@ -347,16 +409,9 @@ else	{		// ligne asm
 		{
 		unsigned long long adr = daline->adr;
 		if	( adr == glo->targ->get_ip() )
-			{
-			snprintf( text, sizeof(text), "<span background=\"" IP_COLOR "\">%08X</span>",
-			(unsigned int)adr );
-			g_object_set( rendy, "markup", text, NULL );
-			// glo->ip_in_list = i;  // ne marche que si ip est dans la fenetre :-((
-			}
-		else	{
-			snprintf( text, sizeof(text), "%08X", (unsigned int)adr );
-			g_object_set( rendy, "text", text, NULL );
-			}
+			snprintf( text, sizeof(text), MARGIN_IP "%08X",	(unsigned int)adr );
+		else	snprintf( text, sizeof(text), MARGIN_NONE "%08X", (unsigned int)adr );
+		g_object_set( rendy, "markup", text, NULL );
 		}
 	else if	( col[0] == 'C' )
 		{
@@ -365,7 +420,7 @@ else	{		// ligne asm
 	}
 }
 
-void regname_data_call( GtkTreeViewColumn * tree_column,
+static void regname_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,
                      GtkTreeIter       * iter,
@@ -386,7 +441,7 @@ else	bgcolor = "#DDDDDD";
 g_object_set( rendy, "cell-background", bgcolor, "cell-background-set", TRUE, NULL );
 }
 
-void regval_data_call( GtkTreeViewColumn * tree_column,
+static void regval_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,
                      GtkTreeIter       * iter,
@@ -527,8 +582,34 @@ if	( depth == 1 )	return indices[0];
 else			return -depth;
 }
 
-// Create a listing view
-GtkWidget * mk_list_view( glostru * glo )
+// create the disassembly view context menu
+GtkWidget * mk_disa_menu( glostru * glo )
+{
+GtkWidget * curmenu;
+GtkWidget * curitem;
+
+curmenu = gtk_menu_new ();    // Don't need to show menus, use gtk_menu_popup
+// gtk_menu_popup( (GtkMenu *)menu1_x, NULL, NULL, NULL, NULL, event->button, event->time );
+
+curitem = gtk_menu_item_new_with_label("Disa Menu");
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_separator_menu_item_new();
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("Breakpoint");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( disa_call_bk ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+return curmenu;
+}
+
+// Create the disassembly view
+GtkWidget * mk_disa_view( glostru * glo )
 {
 GtkWidget *curwidg;
 GtkCellRenderer *renderer;
@@ -578,6 +659,9 @@ PangoFontDescription * font_desc;
 font_desc = pango_font_description_from_string("Monospace 10");
 gtk_widget_modify_font( curwidg, font_desc );
 pango_font_description_free( font_desc );
+
+// connecter callback pour right-clic (c'est la callback qui va identifier le right)
+g_signal_connect( curwidg, "button-press-event", (GCallback)disa_right_call, (gpointer)glo );
 
 return(curwidg);
 }
@@ -719,7 +803,8 @@ gtk_notebook_append_page( GTK_NOTEBOOK( glo->notr ), curwidg, gtk_label_new("Dis
 gtk_widget_set_size_request (curwidg, 200, 100);
 glo->scwl = curwidg;
 
-curwidg = mk_list_view( glo );
+glo->mdisa = mk_disa_menu( glo );
+curwidg = mk_disa_view( glo );
 gtk_container_add( GTK_CONTAINER( glo->scwl ), curwidg );
 glo->tlisl = curwidg;
 
