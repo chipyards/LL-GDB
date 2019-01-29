@@ -15,7 +15,6 @@ vector <registro> regs;
 unsigned int isp;
 unsigned int ibp;
 unsigned int iip;
-unsigned int pos;	// indice de registre (temporaire, pour parseur)
 // constructeur
 regbank() : isp(0), ibp(0), iip(0) { regs.push_back( registro( string( "invalid") ) ); };
 // methodes
@@ -29,19 +28,12 @@ void add_reg_name( string val ) {
 		iip = regs.size();
 	regs.push_back( registro( val ) );
 	};
-void set_reg_pos( string val ) { pos = strtoul( val.c_str(), NULL, 0 );	};	// std::stoul( val ); };
-void set_reg_val( string val ) {
-	unsigned long long newval = strtoull( val.c_str(), NULL, 0 );		// std::stoull( val, 0, 0 ); <-- BUG
+void set_reg( unsigned int pos, unsigned long long newval ) {
 	if	( pos < regs.size() )
 		{
-		if	( regs[pos].val != newval )
-			regs[pos].changed = 1;
+		regs[pos].changed = ( regs[pos].val != newval );
 		regs[pos].val = newval;
 		}
-	};
-void reset_reg_changes() {
-	for	( unsigned int i = 0; i < regs.size(); ++i )
-		regs[i].changed = 0;
 	};
 registro * get_rip() { return &(regs[iip]); };
 registro * get_rsp() { return &(regs[isp]); };
@@ -111,17 +103,18 @@ static int encode_ref( unsigned int file_index, unsigned int line_number ) {
 int search_line( int index, unsigned int hint );	// chercher un index dans le listing (-1 si echec)
 };
 
-typedef enum { Ready=0, Running=1, Disas=2, Registers=4, RAM=8, Init=0x1000 } status_enum;
+typedef enum { Ready=0, Running=1, Disas=2, Registers=4, RAM=8, Breaks=16, Init=0x1000 } status_enum;
 
 class target {
 public:
-status_enum status;
+int status;
 regbank regs;
 vector <asmline> asmstock;
 map <unsigned long long, unsigned int> asmmap;
 vector <srcfile> filestock;
 map <string, unsigned int> filemap;
 vector <listing> liststock;
+map <unsigned long long, unsigned int> breakpoints;
 // constructeur
 target() : status(Init) {
 	asmline badline;		// preparer une ligne pour affichage provisoire
@@ -157,6 +150,15 @@ const char * get_src_line( unsigned int ifil, unsigned int ilin ) {
 			}
 		}
 	else	return "(invalid src file)";
+	}
+void status_set( status_enum bit ) {
+	status |= (int)bit;
+	}
+void status_reset( status_enum bit ) {
+	status &= ~((int)bit);
+	}
+void add_break( unsigned int num, unsigned long long adr ) {
+	breakpoints[adr] = num;		// s'il existe deja on l'ecrase et l'ancien num est perdu...
 	}
 };
 

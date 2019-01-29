@@ -69,22 +69,15 @@ glo->dad->send_cmd( "\n" );
 void expa( glostru * glo )
 {
 refresh( glo );
+glo->t.printf("%d breakpoints\n", glo->targ->breakpoints.size() );
 }
 
 
 void expb( glostru * glo )
 {
 glo->targ->status = Ready;
-glo->t.printf(
-"stop     238a |\xe2\x8e\x8a|\n"
-"continue 23EF |\xe2\x8f\xaf|\n"
-"record   23FA |\xe2\x8f\xba|\n"
-"fish eye 25C9 |\xe2\x97\x89|\n"
-"triangle 25B6 |\xe2\x96\xb6|\n"
-"triangle 25BA |" UTF8_TRIANGLE "|\n"
-"circle   25CF |" UTF8_CIRCLE "|\n"
-"circle   26AB |\xe2\x9a\xab|\n"
-"              |_|\n" );
+send_cmd( glo, "-break-list" );
+glo->targ->status_set( Breaks );
 
 }
 
@@ -138,7 +131,7 @@ else	{ // NON allons desassembler si possible
 			snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5",
 							(unsigned int)adr, glo->exp_N + (unsigned int)adr );
 			glo->timor = 60; send_cmd( glo, tbuf );
-			glo->targ->status = Disas;
+			glo->targ->status_set( Disas );
 			}
 		}
 	}
@@ -159,10 +152,9 @@ send_cmd( glo, "-data-list-register-names");
 if	( glo->option_child_console )
 	send_cmd( glo, "-gdb-set new-console on");
 // send_cmd( glo, "-gdb-set mi-async on");	// marche PO sous windows
-send_cmd( glo, "-exec-run --start");	// ici GDB met un bk sur main
-glo->targ->regs.reset_reg_changes();
+send_cmd( glo, "-exec-run --start");	// ici GDB met un bk temporaire sur main
 send_cmd( glo, "-data-list-register-values x");
-glo->targ->status = Registers;
+glo->targ->status_set( Registers );
 }
 
 /** ============================ call backs ======================= */
@@ -299,9 +291,8 @@ switch	( aname[0] )
 	}
 if	( get )
 	{
-	glo->targ->regs.reset_reg_changes();
 	send_cmd( glo, "-data-list-register-values x");
-	glo->targ->status = Registers;
+	glo->targ->status_set( Registers );
 	}
 }
 /** ================= context menus call backs ======================= */

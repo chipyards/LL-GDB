@@ -4,6 +4,17 @@
 #define UTF8_TRIANGLE	"\xe2\x96\xba"
 #define UTF8_CIRCLE	"\xe2\x97\x8f"
 
+/*glo->t.printf(
+"stop     238a |\xe2\x8e\x8a|\n"
+"continue 23EF |\xe2\x8f\xaf|\n"
+"record   23FA |\xe2\x8f\xba|\n"
+"fish eye 25C9 |\xe2\x97\x89|\n"
+"triangle 25B6 |\xe2\x96\xb6|\n"
+"triangle 25BA |" UTF8_TRIANGLE "|\n"
+"circle   25CF |" UTF8_CIRCLE "|\n"
+"circle   26AB |\xe2\x9a\xab|\n"
+"              |_|\n" );
+*/
 // pango markup pour la marge du disassembly
 #define MARGIN_IP " <span foreground=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
 #define MARGIN_NONE "  "

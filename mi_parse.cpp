@@ -271,11 +271,13 @@ return pos;
 	*/
 int mi_parse::extract( int retval, target * targ )
 {
+// static variables holding pieces of partially parsed elements
 static asmline curasm;
 static string relfile;
 static string absfile;
 static int curline0 = -1;
 static int curline1;
+static unsigned int number;
 
 int ss = stac.size();
 switch	( retval )
@@ -295,10 +297,19 @@ switch	( retval )
 			else if	( nam == string("fullname") )
 				absfile = val;
 			}
+		else if	( ( ss ) && ( stac.back().nam == string("bkpt") ) )
+			{
+			if	( nam == string("number") )
+				number = strtoul( val.c_str(), NULL, 0 );
+			else if	( nam == string("addr") )
+				targ->add_break( number, strtoull( val.c_str(), NULL, 0 ) );
+			}
 		else if	( ( ss >= 2 ) && ( stac[stac.size()-2].nam == string("register-values") ) )
 			{
-			if	( nam == string("number") ) targ->regs.set_reg_pos( val );
-			else if	( nam == string("value") )  targ->regs.set_reg_val( val );
+			if	( nam == string("number") )
+				number = strtoul( val.c_str(), NULL, 0 );
+			else if	( nam == string("value") )
+				targ->regs.set_reg( number, strtoull( val.c_str(), NULL, 0 ) );
 			}
 		else if	( ( ss >= 2 ) && (
 				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
@@ -313,6 +324,8 @@ switch	( retval )
 		break;
 	case 2: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
 			targ->regs.start_reg_names();
+		if	( ( ss ) && ( stac.back().nam == string("BreakpointTable") ) )
+			targ->breakpoints.clear();
 		break;
 	case 3: if	( ( ss >= 2 ) && (
 				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
@@ -321,10 +334,14 @@ switch	( retval )
 			)
 			curasm.init();
 		break;
-	case 4: if	( ( ss ) && ( stac.back().nam == string("asm_insns") ) )
-			targ->status = (status_enum)(targ->status & (~Disas));
+	case 4: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
+			targ->status_reset(Init);
+		if	( ( ss ) && ( stac.back().nam == string("asm_insns") ) )
+			targ->status_reset(Disas);
 		if	( ( ss ) && ( stac.back().nam == string("register-values") ) )
-			targ->status = (status_enum)(targ->status & (~Registers));
+			targ->status_reset(Registers);
+		if	( ( ss ) && ( stac.back().nam == string("BreakpointTable") ) )
+			targ->status_reset(Breaks);
 		break;
 	case 5: if	( ( ss >= 2 ) && (
 				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
