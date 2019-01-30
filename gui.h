@@ -18,6 +18,8 @@
 // pango markup pour la marge du disassembly
 #define MARGIN_IP " <span foreground=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
 #define MARGIN_NONE "  "
+#define MARGIN_BK "<span foreground=\"#FF0000\">" UTF8_CIRCLE "</span> "
+#define MARGIN_BKIP "<span foreground=\"#FF0000\">" UTF8_CIRCLE "</span><span foreground=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
 
 typedef struct
 {
@@ -35,6 +37,7 @@ GtkWidget *         scwl;	// scrollable window for disassembly
 GtkListStore *        tmodl;	// list model
 GtkWidget *           tlisl;	// tree view used as list view
 GtkWidget *             mdisa;	// context menu
+GtkWidget *               itbk;	// menu item
 GtkWidget *         scw4;	// scrollable window for memory
 GtkWidget *     wtran;		// transcript window
 GtkWidget *   mbar;		// horizontal menu

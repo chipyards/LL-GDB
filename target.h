@@ -132,6 +132,9 @@ void dump_listing( unsigned int i );
 unsigned long long get_ip() {
 	return regs.get_rip()->val;
 	}
+int is_break( unsigned long long adr ) {
+	return breakpoints.count( adr );
+	}
 int get_ip_asm_line() {	// rend -1 si adr non desassemblee
 	if	( asmmap.count(get_ip()) )
 		return (int)asmmap[get_ip()];
