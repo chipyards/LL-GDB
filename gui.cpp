@@ -303,12 +303,17 @@ if	( get )
 static void disa_call_bk( GtkWidget *widget, glostru * glo )
 {
 char tbuf[64];
-// on utilise le label de l'item pour passer l'adresse en ascii
-// cela marche mais pas pour break delete (il faudrait adresse numerique)
-const char * ladr = gtk_menu_item_get_label( (GtkMenuItem *)glo->itbk );
-glo->t.printf("disa_call_bk %s\n", ladr );
-snprintf( tbuf, sizeof(tbuf), "-break-insert *%s", ladr );
-send_cmd( glo, tbuf );
+unsigned long long adr = glo->bkadr;
+if	( adr )
+	{
+	if	( glo->targ->is_break( adr ) )
+		{
+		unsigned int bknum = glo->targ->breakpoints[adr];
+		snprintf( tbuf, sizeof(tbuf), "-break-delete %u", bknum );
+		}
+	else	snprintf( tbuf, sizeof(tbuf), "-break-insert *0x%08x", (unsigned int)adr );
+	send_cmd( glo, tbuf );
+	}
 send_cmd( glo, "-break-list" );
 glo->targ->status_set( Breaks );
 
@@ -343,15 +348,18 @@ if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
 		// decoder
 		if	( ref < 0 )
 			{		// ligne de code source
+			glo->bkadr = 0;
 			glo->t.printf( "src line %u\n", listing::decode_line_number(ref) );
 			gtk_menu_item_set_label( (GtkMenuItem *)glo->itbk, "-");
 			}
 		else	{		// ligne asm
 			unsigned long long adr = glo->targ->asmstock[(unsigned int)ref].adr;
-			glo->t.printf( "%08X\n", (unsigned int)adr );
+			glo->bkadr = adr;
 			// on copie l'adresse en ascii dans le label de l'item !
 			char tbuf[32];
-			snprintf( tbuf, sizeof(tbuf), "0x%08X", (unsigned int)adr );
+			if	( glo->targ->is_break( adr ) )
+				snprintf( tbuf, sizeof(tbuf), "kill breakpoint at 0x%08X", (unsigned int)adr );
+			else	snprintf( tbuf, sizeof(tbuf), "set breakpoint at 0x%08X", (unsigned int)adr );
 			gtk_menu_item_set_label( (GtkMenuItem *)glo->itbk, tbuf);
 			}
 		gtk_menu_popup( (GtkMenu *)glo->mdisa, NULL, NULL, NULL, NULL, event->button, event->time );
@@ -606,19 +614,16 @@ GtkWidget * curitem;
 curmenu = gtk_menu_new ();    // Don't need to show menus, use gtk_menu_popup
 // gtk_menu_popup( (GtkMenu *)menu1_x, NULL, NULL, NULL, NULL, event->button, event->time );
 
-curitem = gtk_menu_item_new_with_label("Breakpoint");
-gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
-
-curitem = gtk_separator_menu_item_new();
-gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
 
 curitem = gtk_menu_item_new_with_label("Breakpoint");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( disa_call_bk ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 glo->itbk = curitem;
+gtk_widget_show ( curitem );
+
+curitem = gtk_separator_menu_item_new();
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
 return curmenu;

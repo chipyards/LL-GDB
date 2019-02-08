@@ -37,7 +37,8 @@ GtkWidget *         scwl;	// scrollable window for disassembly
 GtkListStore *        tmodl;	// list model
 GtkWidget *           tlisl;	// tree view used as list view
 GtkWidget *             mdisa;	// context menu
-GtkWidget *               itbk;	// menu item
+GtkWidget *               itbk;	// menu item for breakpoint
+unsigned long long	  bkadr;// addr for breakpoint
 GtkWidget *         scw4;	// scrollable window for memory
 GtkWidget *     wtran;		// transcript window
 GtkWidget *   mbar;		// horizontal menu
