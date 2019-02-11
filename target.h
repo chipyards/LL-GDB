@@ -108,6 +108,7 @@ typedef enum { Ready=0, Running=1, Disas=2, Registers=4, RAM=8, Breaks=16, Init=
 class target {
 public:
 int status;
+string reason;	// reason of *stopped
 regbank regs;
 vector <asmline> asmstock;
 map <unsigned long long, unsigned int> asmmap;
@@ -117,15 +118,21 @@ vector <listing> liststock;
 map <unsigned long long, unsigned int> breakpoints;
 // constructeur
 target() : status(Init) {
+	asm_init();
+	}
+// methodes
+void asm_init() {
+	asmstock.clear();
+	asmmap.clear();
 	asmline badline;		// preparer une ligne pour affichage provisoire
 	asmstock.push_back( badline );
 	asmstock.back().init();		// adr = 0 !
 	asmstock.back().asmsrc = string("waiting for disassembly");
 	asmmap[0] = 0;
+	liststock.clear();
 	listing badlist;		// avoir toujours au moins un listing, meme vide
 	liststock.push_back( badlist );
 	}
-// methodes
 int fill_listing( unsigned int ilist, unsigned long long adr );
 int add_listing( unsigned long long adr );
 void dump_listing( unsigned int i );

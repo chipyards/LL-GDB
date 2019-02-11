@@ -131,6 +131,9 @@ else	{ // NON allons desassembler si possible
 		if	( adr )
 			{
 			char tbuf[64];
+			if	( glo->option_flavor )
+				send_cmd( glo, "-gdb-set disassembly-flavor intel");
+			else	send_cmd( glo, "-gdb-set disassembly-flavor att");
 			snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5",
 							(unsigned int)adr, glo->exp_N + (unsigned int)adr );
 			glo->timor = 60; send_cmd( glo, tbuf );
@@ -154,6 +157,8 @@ void init_step( glostru *glo )
 send_cmd( glo, "-data-list-register-names");
 if	( glo->option_child_console )
 	send_cmd( glo, "-gdb-set new-console on");
+//if	( glo->option_flavor )
+//	send_cmd( glo, "-gdb-set disassembly-flavor intel");	// else att
 // send_cmd( glo, "-gdb-set mi-async on");	// marche PO sous windows
 send_cmd( glo, "-exec-run --start");	// ici GDB met un bk temporaire sur main
 send_cmd( glo, "-data-list-register-values x");
@@ -203,7 +208,7 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 		{
 		glo->t.printf("Err %d\n", -retval ); break;
 		}
-	else	{					// >0 = fin de quelque chose, a extraire pour peupler dans l'objet target
+	else	{					// >0 = fin de quelque chose, a extraire seulement si necessaire
 		glo->mipa->extract( retval, glo->targ );
 		if	( retval == 9 )
 			{					// 9 = fin de stream-output
@@ -225,14 +230,13 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
 				glo->t.printf("%s\n", tbuf );
 			}
-		if	( ( !tog2 ) && ( !tog3 ) && ( retval == 1 ) )
+		if	( ( !tog2 ) && ( !tog3 ) && ( retval == 8 ) )
 			{
-			// PROVISOAR juste pour lire un variable on les dumpe toutes c'est relou !
+			// PROVISOAR : *stopped devrait etre interprete par mi_parse et reporte dans targ->status
 			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
-				{
-				// "reason" devra etre interpretee par le parseur et reportee dans le status de la target
-				if	( strncmp( tbuf, "reason", 6 ) == 0 )
-					glo->t.printf("%s\n", tbuf );
+				{	// hum! human readable code interpreted by machine !
+				if	( strncmp( tbuf, "fin report *stopped", 19 ) == 0 )
+					glo->t.printf("stopped : %s\n", glo->targ->reason.c_str() );
 				}
 			}
 		}
@@ -316,7 +320,16 @@ if	( adr )
 	}
 send_cmd( glo, "-break-list" );
 glo->targ->status_set( Breaks );
+}
 
+static void disa_call_flavor( GtkWidget *widget, glostru * glo )
+{
+glo->option_flavor ^= 1;
+if	( glo->option_flavor )
+	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (Intel flavor)" );
+else	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (AT&T flavor)" );
+glo->targ->asm_init();
+update_disass( glo );
 }
 
 // une call back pour le right-clic
@@ -384,7 +397,6 @@ static void disa_data_call( GtkTreeViewColumn * tree_column,
                      glostru *         glo )
 {
 listing * list;
-const char *col;
 unsigned int i;
 int ref;
 char text[128];
@@ -397,8 +409,6 @@ else	{
 	}
 // recuperer notre index dans la colonne 0 du model
 gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
-// identifier la colonne
-col = gtk_tree_view_column_get_title( tree_column );
 // recuperer la reference codee de ligne dans l'objet target
 if	( i < list->lines.size() )
 	ref = list->lines[i];
@@ -408,19 +418,19 @@ if	( ref < 0 )
 	{		// ligne de code source
 	unsigned int ilin = listing::decode_line_number(ref);
 	unsigned int ifil = listing::decode_file_index(ref);
-	if	( col[0] == 'A' )
+	if	( tree_column == glo->adrcol )
 		{
 		snprintf( text, sizeof(text), "  %d", ilin );
 		g_object_set( rendy, "text", text, NULL );
 		}
-	else if	( col[0] == 'C' )
+	else if	( tree_column == glo->asmcol )
 		{
 		g_object_set( rendy, "text", glo->targ->get_src_line( ifil, ilin ), NULL );
 		}
 	}
 else	{		// ligne asm
 	asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
-	if	( col[0] == 'A' )
+	if	( tree_column == glo->adrcol )
 		{
 		unsigned long long adr = daline->adr;
 		if	( adr == glo->targ->get_ip() )
@@ -436,7 +446,7 @@ else	{		// ligne asm
 			}
 		g_object_set( rendy, "markup", text, NULL );
 		}
-	else if	( col[0] == 'C' )
+	else if	( tree_column == glo->asmcol )
 		{
 		g_object_set( rendy, "text", daline->asmsrc.c_str(), NULL );
 		}
@@ -626,6 +636,12 @@ curitem = gtk_separator_menu_item_new();
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
+curitem = gtk_menu_item_new_with_label("Change disassembly flavor");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( disa_call_flavor ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
 return curmenu;
 }
 
@@ -644,7 +660,7 @@ list_store_resize( glo->tmodl, 1 );
 // la vue
 curwidg = gtk_tree_view_new();
 
-// la colonne nom de registre, avec data_func
+// la colonne adresse, avec data_func
 renderer = gtk_cell_renderer_text_new();
 curcol = gtk_tree_view_column_new();
 
@@ -655,18 +671,22 @@ gtk_tree_view_column_set_cell_data_func( curcol, renderer,
                                          (gpointer)glo, NULL );
 gtk_tree_view_column_set_resizable( curcol, TRUE );
 gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+glo->adrcol = curcol;
 
 // la colonne valeur, avec data_func
 renderer = gtk_cell_renderer_text_new();
 curcol = gtk_tree_view_column_new();
 
-gtk_tree_view_column_set_title( curcol, "Code" );
 gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
 gtk_tree_view_column_set_cell_data_func( curcol, renderer,
                                          (GtkTreeCellDataFunc)disa_data_call,
                                          (gpointer)glo, NULL );
 gtk_tree_view_column_set_resizable( curcol, TRUE );
 gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+glo->asmcol = curcol;
+if	( glo->option_flavor )
+	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (Intel flavor)" );
+else	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (AT&T flavor)" );
 
 // configurer la selection
 cursel = gtk_tree_view_get_selection( (GtkTreeView*)curwidg );
@@ -755,6 +775,19 @@ glo->mipa = &lemipa;
 glo->targ = &latarget;
 glo->timor = 0;
 glo->ilist = 0;
+
+// option de CLI
+glo->option_child_console = 1;
+glo->option_flavor = 0;
+glo->exp_N = 512;
+if	( argc > 2 )
+	{
+	if	( argv[2][0] == '-' )
+		glo->option_child_console = 0;
+	else	glo->exp_N = atoi( argv[2] );
+	}
+if	( glo->exp_N == 0 )
+	glo->exp_N = 16;
 
 setlocale( LC_ALL, "C" );	// question de survie
 
@@ -903,18 +936,6 @@ if	( argc > 1 )
 	glo->t.printf("Error daddy %d\n", retval );
 	}
 else	return 1;
-
-// option de CLI
-glo->option_child_console = 1;
-glo->exp_N = 512;
-if	( argc > 2 )
-	{
-	if	( argv[2][0] == '-' )
-		glo->option_child_console = 0;
-	else	glo->exp_N = atoi( argv[2] );
-	}
-if	( glo->exp_N == 0 )
-	glo->exp_N = 16;
 
 gtk_main();
 

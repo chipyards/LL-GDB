@@ -281,7 +281,7 @@ static unsigned int number;
 
 int ss = stac.size();
 switch	( retval )
-	{
+	{		// N.B. il faudra optimiser l'ordre des tests en fonction de la frequence des cas ;-)
 	case 1: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )	// short circuit eval ;-)
 			targ->regs.add_reg_name( val );
 		else if	( ( ss ) && ( stac.back().nam == string("src_and_asm_line") ) )
@@ -321,6 +321,8 @@ switch	( retval )
 			else if	( nam == string("opcodes") ) curasm.count_the_bytes( val );
 			else if	( nam == string("inst") ) curasm.asmsrc = val;
 			}
+		else if	( nam == "reason" )
+			targ->reason = val;
 		break;
 	case 2: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
 			targ->regs.start_reg_names();
