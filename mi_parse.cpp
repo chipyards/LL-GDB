@@ -321,6 +321,20 @@ switch	( retval )
 			else if	( nam == string("opcodes") ) curasm.count_the_bytes( val );
 			else if	( nam == string("inst") ) curasm.asmsrc = val;
 			}
+		else if	( ( ss >= 2 ) && ( stac[stac.size()-2].nam == string("memory") ) )
+			{
+			if	( nam == string("begin") )
+				{
+				targ->ramstock[0].w32.clear();
+				targ->ramstock[0].adr0 = strtoull( val.c_str(), NULL, 0 );
+				}
+			else if	( nam == string("offset") )
+				targ->ramstock[0].adr0 += strtoull( val.c_str(), NULL, 0 );
+			else if	( nam == string("contents") )
+				{
+				targ->ramstock[0].txt2w32( val.c_str() );
+				}
+			}
 		else if	( nam == "reason" )
 			targ->reason = val;
 		break;
@@ -344,6 +358,8 @@ switch	( retval )
 			targ->status_reset(Registers);
 		if	( ( ss ) && ( stac.back().nam == string("BreakpointTable") ) )
 			targ->status_reset(Breaks);
+		if	( ( ss ) && ( stac.back().nam == string("memory") ) )
+			targ->status_reset(RAM);
 		break;
 	case 5: if	( ( ss >= 2 ) && (
 				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||

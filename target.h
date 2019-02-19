@@ -103,6 +103,14 @@ static int encode_ref( unsigned int file_index, unsigned int line_number ) {
 int search_line( int index, unsigned int hint );	// chercher un index dans le listing (-1 si echec)
 };
 
+class memory {		// a memory listing ready for display
+public:
+unsigned long long adr0;	// begin address;
+vector <unsigned int> w32;	// 32-bit words
+// methodes
+void txt2w32( const char * txt );	// parser les bytes en hex --> w32
+};
+
 typedef enum { Ready=0, Running=1, Disas=2, Registers=4, RAM=8, Breaks=16, Init=0x1000 } status_enum;
 
 class target {
@@ -116,9 +124,13 @@ vector <srcfile> filestock;
 map <string, unsigned int> filemap;
 vector <listing> liststock;
 map <unsigned long long, unsigned int> breakpoints;
+vector <memory> ramstock;
 // constructeur
 target() : status(Init) {
 	asm_init();
+	memory badram;		// avoir toujours au moins une RAM, meme vide
+	badram.adr0 = 0;
+	ramstock.push_back( badram );
 	}
 // methodes
 void asm_init() {

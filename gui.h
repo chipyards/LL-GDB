@@ -33,6 +33,7 @@ GtkListStore *        tmodr;		// list model
 GtkWidget *           tlisr;		// tree view used as list view
 GtkWidget *         scw2;		// scrollable window for stack
 GtkWidget *       notr;			// right notebook
+
 GtkWidget *         scwl;		// scrollable window for disassembly
 GtkListStore *        tmodl;		// list model
 GtkWidget *           tlisl;		// tree view used as list view
@@ -41,7 +42,16 @@ GtkWidget *               itbk;		// menu item for breakpoint
 unsigned long long	bkadr;		// addr for breakpoint
 GtkTreeViewColumn *     adrcol;		// assembly adr column
 GtkTreeViewColumn *     asmcol;		// assembly src column
-GtkWidget *         scw4;		// scrollable window for memory
+
+GtkWidget *         vram;		// boite verticale
+GtkWidget *           eram;		// text entry pour addr
+GtkWidget *           scwm;		// scrollable window for memory
+GtkListStore *          tmodm;		// list model
+GtkWidget *             tlism;		// tree view used as list view
+GtkWidget *               mram;		// context menu
+GtkTreeViewColumn *       madrcol;	// ram adr column
+GtkTreeViewColumn *       mdatcol;	// ram data column
+
 GtkWidget *     wtran;			// transcript window
 GtkWidget *   mbar;			// horizontal menu
 GtkWidget *   hbut;			// horizontal box

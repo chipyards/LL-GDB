@@ -45,7 +45,6 @@ void refresh( glostru * glo );
 
 void some_stats( glostru * glo )
 {
-// d'abord un peu de stats
 glo->t.printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmstock.size() );
 //for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
 //	glo->targ->asmstock[i].dump();
@@ -53,8 +52,10 @@ for	( unsigned int i = 0; i < glo->targ->filestock.size(); ++i )
 	printf("fichier src : %s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
 unsigned int qlist = glo->targ->liststock[glo->ilist].lines.size();
 glo->t.printf("%d listing lines\n", qlist );
-glo->t.printf("%d tree model rows\n", list_store_cnt( glo->tmodl ) );
+glo->t.printf("%d disass model rows\n", list_store_cnt( glo->tmodl ) );
 glo->t.printf("%d breakpoints\n", glo->targ->breakpoints.size() );
+glo->t.printf("RAM data %u words @ 0x%08X\n", (unsigned int)glo->targ->ramstock[0].w32.size(), (unsigned int)glo->targ->ramstock[0].adr0 );
+glo->t.printf("%d RAM model rows\n", list_store_cnt( glo->tmodm ) );
 }
 
 
@@ -81,7 +82,7 @@ void expb( glostru * glo )
 glo->targ->status = Ready;
 send_cmd( glo, "-break-list" );
 glo->targ->status_set( Breaks );
-
+some_stats( glo );
 }
 
 // fonction a appeler chaque fois que ip a change
@@ -148,6 +149,10 @@ void refresh( glostru *glo )
 update_disass( glo );
 gtk_widget_queue_draw( glo->tlisl );
 gtk_widget_queue_draw( glo->tlisr );
+unsigned int s = glo->targ->ramstock[0].w32.size();	// hum ce n'est pas l'endroit ou faire ça
+if	( s > 0 )
+	list_store_resize( glo->tmodm, s );
+gtk_widget_queue_draw( glo->tlism );
 }
 
 // cette fonction pretend assurer les etapes de demarrage
@@ -165,7 +170,7 @@ send_cmd( glo, "-data-list-register-values x");
 glo->targ->status_set( Registers );
 }
 
-/** ============================ call backs ======================= */
+/** ============================ widget call backs ======================= */
 
 gint close_event_call( GtkWidget *widget,
                         GdkEvent  *event,
@@ -300,8 +305,33 @@ if	( get )
 	{
 	send_cmd( glo, "-data-list-register-values x");
 	glo->targ->status_set( Registers );
+	char tbuf[64];
+	if	( glo->targ->ramstock[0].adr0 > 0 )
+		{
+		snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x%x %u",
+			  (unsigned int)glo->targ->ramstock[0].adr0, 128 );
+		send_cmd( glo, tbuf);
+		glo->targ->status_set( RAM );
+		}
 	}
 }
+
+void ram_adr_call( GtkWidget *widget, glostru * glo )
+{
+char tbuf[64];
+unsigned long long adr;
+adr = strtoull( gtk_entry_get_text( GTK_ENTRY(widget) ), NULL, 16 );	// accepte 0x ou hex brut
+adr &= (~(unsigned long long)7);	// alignement autoritaire sur 64 bits
+snprintf( tbuf, sizeof(tbuf), "0x%08x", (unsigned int)adr );
+gtk_entry_set_text( GTK_ENTRY(widget), tbuf );
+if	( adr > 0 )			// un peu foolproof mais pas trop
+	{
+	snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x%x %u", (unsigned int)adr, 128 );
+	send_cmd( glo, tbuf);
+	glo->targ->status_set( RAM );
+	}
+}
+
 /** ================= context menus call backs ======================= */
 
 static void disa_call_bk( GtkWidget *widget, glostru * glo )
@@ -382,14 +412,11 @@ if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
 return FALSE;				/* we did not handle this */
 }
 
-
-
 /** ================= Gtk Tree View call backs ======================= */
 
 // N.B.
 // on peut identifier la treeview avec gtk_tree_view_column_get_tree_view()
-// on peut identifier la colonne avec gtk_tree_view_column_get_title ()
-
+// on peut identifier la colonne avec gtk_tree_view_column_get_title() si son nom est unique
 static void disa_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,
@@ -507,6 +534,32 @@ g_object_set( rendy, "cell-background", chng?"#88DDFF":"#FFFFFF", "cell-backgrou
 #endif
 }
 
+static void ram_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo )
+{
+unsigned int i;
+char text[128];
+// recuperer notre index dans la colonne 0 du model
+gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
+if	( tree_column == glo->madrcol )
+	{
+	unsigned long long adr = glo->targ->ramstock[0].adr0;
+	adr += i * 4;
+	snprintf( text, sizeof(text), "%08X", (unsigned int)adr );
+	g_object_set( rendy, "text", text, NULL );
+	}
+else if	( tree_column == glo->mdatcol )
+	{
+	if	( i < glo->targ->ramstock[0].w32.size() )
+		snprintf( text, sizeof(text), "%08X", glo->targ->ramstock[0].w32[i] );
+	else	snprintf( text, sizeof(text), "no data" );
+	g_object_set( rendy, "text", text, NULL );
+	}
+}
+
 /** ============================ menus std ======================= */
 
 // tableau d'actions initialise
@@ -587,7 +640,7 @@ labar = gtk_ui_manager_get_widget( manui, "/MenuBar" );
 return labar;
 }
 
-/** ============================ widgets ======================= */
+/** ============================ make widgets ======================= */
 
 void list_store_resize( GtkListStore * mod, unsigned int size )
 {	// modele minimal, 1 colonne de type int
@@ -756,8 +809,67 @@ gtk_tree_view_set_model( (GtkTreeView*)curwidg, GTK_TREE_MODEL( glo->tmodr ) );
 return(curwidg);
 }
 
+// Create the memory view
+GtkWidget * mk_ram_view( glostru * glo )
+{
+GtkWidget *curwidg;
+GtkCellRenderer *renderer;
+GtkTreeViewColumn *curcol;
+GtkTreeSelection* cursel;
 
-// =================== THE MAIN =======================
+// le modele : minimal, 1 colonne de type int
+glo->tmodm = gtk_list_store_new( 1, G_TYPE_INT );
+list_store_resize( glo->tmodm, 1 );
+
+// la vue
+curwidg = gtk_tree_view_new();
+
+// la colonne adresse, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, "Address" );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)ram_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+glo->madrcol = curcol;
+
+// la colonne valeur, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, "Data" );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)ram_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+glo->mdatcol = curcol;
+
+// configurer la selection
+cursel = gtk_tree_view_get_selection( (GtkTreeView*)curwidg );
+gtk_tree_selection_set_mode( cursel, GTK_SELECTION_NONE );
+
+// connecter modele
+gtk_tree_view_set_model( (GtkTreeView*)curwidg, GTK_TREE_MODEL( glo->tmodm ) );
+
+// Change default font throughout the widget
+PangoFontDescription * font_desc;
+font_desc = pango_font_description_from_string("Monospace 10");
+gtk_widget_modify_font( curwidg, font_desc );
+pango_font_description_free( font_desc );
+
+// connecter callback pour right-clic (c'est la callback qui va identifier le right)
+// g_signal_connect( curwidg, "button-press-event", (GCallback)ram_right_call, (gpointer)glo );
+
+return(curwidg);
+}
+
+/** =================== THE MAIN ======================= */
 
 // the big storage of everything
 static glostru theglo;
@@ -823,6 +935,7 @@ gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
 glo->vpan = curwidg;
 
 // paire horizontale "paned" dans la moitie superieure de la paned verticale
+// avec 2 notebooks
 curwidg = gtk_hpaned_new ();
 gtk_paned_pack1( GTK_PANED(glo->vpan), curwidg, TRUE, FALSE );
 glo->hpan = curwidg;
@@ -835,6 +948,7 @@ curwidg = gtk_notebook_new();
 gtk_paned_pack2 (GTK_PANED (glo->hpan), curwidg, TRUE, FALSE );
 glo->notr = curwidg;
 
+// notebook de gauche : registres
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Registers") );
@@ -847,10 +961,12 @@ glo->tlisr = curwidg;
 
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
-gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Stack") );
+gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Thing") );
 gtk_widget_set_size_request (curwidg, 60, 100);
 glo->scw2 = curwidg;
 
+// notebook de droite : disassembly + RAM
+// tab de disassembly
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notr ), curwidg, gtk_label_new("Disassembly") );
@@ -862,13 +978,33 @@ curwidg = mk_disa_view( glo );
 gtk_container_add( GTK_CONTAINER( glo->scwl ), curwidg );
 glo->tlisl = curwidg;
 
+// tab de RAM
+curwidg = gtk_vbox_new( FALSE, 2 );
+gtk_notebook_append_page( GTK_NOTEBOOK( glo->notr ), curwidg, gtk_label_new("Memory") );
+glo->vram = curwidg;
+
+curwidg = gtk_entry_new();
+gtk_signal_connect( GTK_OBJECT( curwidg ), "activate",
+                    GTK_SIGNAL_FUNC( ram_adr_call ), (gpointer)glo );
+gtk_entry_set_editable( GTK_ENTRY(curwidg), TRUE );
+gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
+gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, FALSE, FALSE, 0 );
+glo->eram = curwidg;
+
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
-gtk_notebook_append_page( GTK_NOTEBOOK( glo->notr ), curwidg, gtk_label_new("Memory") );
+gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, TRUE, TRUE, 0 );
 gtk_widget_set_size_request (curwidg, 200, 100);
-glo->scw4 = curwidg;
+glo->scwm = curwidg;
 
-// scrolled window pour le transcript dans la moitie inferieure de la paned verticale
+curwidg = mk_ram_view( glo );
+gtk_container_add( GTK_CONTAINER( glo->scwm ), curwidg );
+glo->tlism = curwidg;
+
+
+
+
+// Le transcript dans la moitie inferieure de la paned verticale
 curwidg = glo->t.create();
 gtk_paned_pack2( GTK_PANED(glo->vpan), curwidg, TRUE, FALSE );
 gtk_widget_set_size_request( curwidg, 700, 200 );
