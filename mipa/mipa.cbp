@@ -56,6 +56,7 @@
 		<Unit filename="../futf8.h" />
 		<Unit filename="../gui.cpp" />
 		<Unit filename="../gui.h" />
+		<Unit filename="../layout.cpp" />
 		<Unit filename="../mi_parse.cpp" />
 		<Unit filename="../mi_parse.h" />
 		<Unit filename="../spawn_w.cpp" />

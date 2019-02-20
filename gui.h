@@ -62,7 +62,6 @@ GtkWidget *     btog3;			// button
 GtkWidget *     btog4;			// button
 GtkWidget *     bqui;			// button
 
-
 transzcript t;
 
 daddy * dad;
@@ -78,3 +77,52 @@ int option_flavor;		// 0 = AT&T, 1 = Intel
 unsigned int exp_N;		// entier generique pour experiences
 
 } glostru;
+
+/** fonctions de layout ---------------------------*/
+
+// create the disassembly view context menu
+GtkWidget * mk_disa_menu( glostru * glo );
+// Create the disassembly view
+GtkWidget * mk_disa_view( glostru * glo );
+// Create the register view
+GtkWidget * mk_reg_view( glostru * glo );
+// Create the memory view
+GtkWidget * mk_ram_view( glostru * glo );
+// Create the menubar
+GtkWidget * mk_bars( glostru * glo );
+// make the GUI
+void mk_the_gui( glostru * glo );
+
+/** widget callbacks ------------------------------*/
+
+void disa_call_bk( GtkWidget *widget, glostru * glo );
+void disa_call_flavor( GtkWidget *widget, glostru * glo );
+gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
+void ram_adr_call( GtkWidget *widget, glostru * glo );
+void cmd_call( GtkWidget *widget, glostru * glo );
+
+void disa_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo );
+void regname_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo );
+void regval_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo );
+void ram_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo );
+
+/** ============================ list store utilities ======================= */
+
+void list_store_resize( GtkListStore * mod, unsigned int size );
+unsigned int list_store_cnt( GtkListStore * mod );

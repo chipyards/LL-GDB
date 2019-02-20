@@ -4,7 +4,7 @@ GTKBASE= U:/Appli/msys64/mingw32
 # listes
 
 C_SRC =
-CPP_SRC = target.cpp mi_parse.cpp spawn_w.cpp futf8.cpp transcript.cpp gui.cpp
+CPP_SRC = target.cpp mi_parse.cpp spawn_w.cpp futf8.cpp transcript.cpp layout.cpp gui.cpp
 EXE = gui.exe
 
 OBJS = $(C_SRC:.c=.o) $(CPP_SRC:.cpp=.o)
