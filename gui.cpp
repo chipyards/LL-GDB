@@ -13,6 +13,7 @@ using namespace std;
 
 #include <windows.h>
 
+#include "modpop2.h"
 #include "transcript.h"
 #include "spawn_w.h"
 #include "target.h"
@@ -89,8 +90,6 @@ glo->targ->status_set( Breaks );
 void expb( glostru * glo )
 {
 glo->targ->status = Ready;
-send_cmd( glo, "-break-list" );
-glo->targ->status_set( Breaks );
 some_stats( glo );
 }
 
@@ -140,12 +139,12 @@ else	{ // NON allons desassembler si possible
 		adr = glo->targ->get_ip();
 		if	( adr )
 			{
-			char tbuf[64];
+			char tbuf[128];
 			if	( glo->option_flavor )
 				send_cmd( glo, "-gdb-set disassembly-flavor intel");
 			else	send_cmd( glo, "-gdb-set disassembly-flavor att");
-			snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x%x -e 0x%x -- 5",
-							(unsigned int)adr, glo->exp_N + (unsigned int)adr );
+			snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x" OPT_FMT " -e 0x" OPT_FMT " -- 5",
+							(opt_type)adr, glo->exp_N + (opt_type)adr );
 			glo->timor = 60; send_cmd( glo, tbuf );
 			glo->targ->status_set( Disas );
 			}
@@ -210,6 +209,7 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 		continue;
 	else if	( retval < 0 )				// <0 = erreur detectee par parseur de MI
 		{
+		modpop( "erreur", "erreur MI parser", GTK_WINDOW(glo->wmain) );
 		glo->t.printf("Err %d\n", -retval ); break;
 		}
 	else	{					// >0 = fin de quelque chose, a extraire seulement si necessaire
@@ -232,7 +232,9 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			)
 			{	// dump du MI indente
 			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
+				{
 				glo->t.printf("%s\n", tbuf );
+				}
 			}
 		if	( ( !tog2 ) && ( !tog3 ) && ( retval == 8 ) )
 			{
@@ -304,11 +306,11 @@ if	( get )
 	{
 	send_cmd( glo, "-data-list-register-values x");
 	glo->targ->status_set( Registers );
-	char tbuf[64];
+	char tbuf[128];
 	if	( glo->targ->ramstock[0].adr0 > 0 )
 		{
-		snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x%x %u",
-			  (unsigned int)glo->targ->ramstock[0].adr0, 128 );
+		snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x" OPT_FMT " %u",
+			  (opt_type)glo->targ->ramstock[0].adr0, glo->option_ramblock );
 		send_cmd( glo, tbuf);
 		glo->targ->status_set( RAM );
 		}
@@ -317,15 +319,15 @@ if	( get )
 
 void ram_adr_call( GtkWidget *widget, glostru * glo )
 {
-char tbuf[64];
+char tbuf[128];
 unsigned long long adr;
 adr = strtoull( gtk_entry_get_text( GTK_ENTRY(widget) ), NULL, 16 );	// accepte 0x ou hex brut
 adr &= (~(unsigned long long)7);	// alignement autoritaire sur 64 bits
-snprintf( tbuf, sizeof(tbuf), "0x%08x", (unsigned int)adr );
+snprintf( tbuf, sizeof(tbuf), "0x" OPT_FMT, (opt_type)adr );
 gtk_entry_set_text( GTK_ENTRY(widget), tbuf );
 if	( adr > 0 )			// un peu foolproof mais pas trop
 	{
-	snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x%x %u", (unsigned int)adr, 128 );
+	snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x" OPT_FMT " %u", (opt_type)adr, glo->option_ramblock );
 	send_cmd( glo, tbuf);
 	glo->targ->status_set( RAM );
 	}
@@ -335,7 +337,7 @@ if	( adr > 0 )			// un peu foolproof mais pas trop
 
 void disa_call_bk( GtkWidget *widget, glostru * glo )
 {
-char tbuf[64];
+char tbuf[128];
 unsigned long long adr = glo->bkadr;
 if	( adr )
 	{
@@ -344,7 +346,9 @@ if	( adr )
 		unsigned int bknum = glo->targ->breakpoints[adr];
 		snprintf( tbuf, sizeof(tbuf), "-break-delete %u", bknum );
 		}
-	else	snprintf( tbuf, sizeof(tbuf), "-break-insert *0x%08x", (unsigned int)adr );
+	else	{
+		snprintf( tbuf, sizeof(tbuf), "-break-insert *0x" OPT_FMT, (opt_type)adr );
+		}
 	send_cmd( glo, tbuf );
 	}
 send_cmd( glo, "-break-list" );
@@ -396,10 +400,10 @@ if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
 			unsigned long long adr = glo->targ->asmstock[(unsigned int)ref].adr;
 			glo->bkadr = adr;
 			// on copie l'adresse en ascii dans le label de l'item !
-			char tbuf[32];
+			char tbuf[128];
 			if	( glo->targ->is_break( adr ) )
-				snprintf( tbuf, sizeof(tbuf), "kill breakpoint at 0x%08X", (unsigned int)adr );
-			else	snprintf( tbuf, sizeof(tbuf), "set breakpoint at 0x%08X", (unsigned int)adr );
+				snprintf( tbuf, sizeof(tbuf), "kill breakpoint at 0x" OPT_FMT, (opt_type)adr );
+			else	snprintf( tbuf, sizeof(tbuf), "set breakpoint at 0x" OPT_FMT, (opt_type)adr );
 			gtk_menu_item_set_label( (GtkMenuItem *)glo->itbk, tbuf);
 			}
 		gtk_menu_popup( (GtkMenu *)glo->mdisa, NULL, NULL, NULL, NULL, event->button, event->time );
@@ -460,13 +464,13 @@ else	{		// ligne asm
 		if	( adr == glo->targ->get_ip() )
 			{
 			if	( glo->targ->is_break( adr ) )
-				snprintf( text, sizeof(text), MARGIN_BKIP "%08X", (unsigned int)adr );
-			else	snprintf( text, sizeof(text), MARGIN_IP "%08X",   (unsigned int)adr );
+				snprintf( text, sizeof(text), MARGIN_BKIP OPT_FMT, (opt_type)adr );
+			else	snprintf( text, sizeof(text), MARGIN_IP OPT_FMT,   (opt_type)adr );
 			}
 		else	{
 			if	( glo->targ->is_break( adr ) )
-				snprintf( text, sizeof(text), MARGIN_BK "%08X",   (unsigned int)adr );
-			else	snprintf( text, sizeof(text), MARGIN_NONE "%08X", (unsigned int)adr );
+				snprintf( text, sizeof(text), MARGIN_BK OPT_FMT,   (opt_type)adr );
+			else	snprintf( text, sizeof(text), MARGIN_NONE OPT_FMT, (opt_type)adr );
 			}
 		g_object_set( rendy, "markup", text, NULL );
 		}
@@ -515,8 +519,8 @@ if	( i < glo->targ->regs.regs.size() )
 	{
 	chng = glo->targ->regs.regs[i].changed;
 	#ifdef MARKUP_REG
-	snprintf( text, sizeof(text), "<span background=\"%s\">%08X</span>",
-		  chng?"#88DDFF":"#FFFFFF", (unsigned int)glo->targ->regs.regs[i].val );
+	snprintf( text, sizeof(text), "<span background=\"%s\">" OPT_FMT "</span>",
+		  chng?"#88DDFF":"#FFFFFF", (opt_type)glo->targ->regs.regs[i].val );
 	#else
 	snprintf( text, sizeof(text), "%08X", (unsigned int)glo->targ->regs.regs[i].val );
 	#endif
@@ -545,7 +549,7 @@ if	( tree_column == glo->madrcol )
 	{
 	unsigned long long adr = glo->targ->ramstock[0].adr0;
 	adr += i * 4;
-	snprintf( text, sizeof(text), "%08X", (unsigned int)adr );
+	snprintf( text, sizeof(text), OPT_FMT, (opt_type)adr );
 	g_object_set( rendy, "text", text, NULL );
 	}
 else if	( tree_column == glo->mdatcol )
@@ -644,6 +648,10 @@ static glostru theglo;
 static daddy ledad;
 static mi_parse lemipa;
 static target latarget;
+// pour exception gasp() de modpop2.c
+// ceci cree bien le storage de la variable et l'exporte
+// pour un programme C (a savoir modpop2.c) !!
+extern "C" { GtkWindow * global_main_window; };
 
 int main( int argc, char *argv[] )
 {
@@ -658,7 +666,10 @@ glo->ilist = 0;
 // option de CLI
 glo->option_child_console = 1;
 glo->option_flavor = 0;
-glo->exp_N = 512;
+glo->option_ramblock = 128;
+glo->option_toggles = 1;
+
+glo->exp_N = 256;
 if	( argc > 2 )
 	{
 	if	( argv[2][0] == '-' )
@@ -674,6 +685,16 @@ gtk_init(&argc,&argv);
 
 // main window layout
 mk_the_gui( glo );
+global_main_window = GTK_WINDOW(glo->wmain);
+
+if	( glo->option_toggles & 1 )
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( glo->btog1 ), TRUE );
+if	( glo->option_toggles & 2 )
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( glo->btog2 ), TRUE );
+if	( glo->option_toggles & 4 )
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( glo->btog3 ), TRUE );
+if	( glo->option_toggles & 8 )
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( glo->btog4 ), TRUE );
 
 gtk_timeout_add( 31, (GtkFunction)(idle_call), (gpointer)glo );
 
@@ -686,7 +707,9 @@ if	( argc > 1 )
 	if	( retval )
 	glo->t.printf("Error daddy %d\n", retval );
 	}
-else	return 1;
+else	gasp("need an executable file name");
+
+// modpop( "test", "before gtk_main", GTK_WINDOW(glo->wmain) );
 
 gtk_main();
 

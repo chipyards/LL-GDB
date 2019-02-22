@@ -59,6 +59,9 @@
 		<Unit filename="../layout.cpp" />
 		<Unit filename="../mi_parse.cpp" />
 		<Unit filename="../mi_parse.h" />
+		<Unit filename="../modpop2.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="../spawn_w.cpp" />
 		<Unit filename="../spawn_w.h" />
 		<Unit filename="../target.cpp" />

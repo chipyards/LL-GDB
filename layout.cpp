@@ -124,7 +124,11 @@ GtkTreeSelection* cursel;
 
 // le modele : minimal, 1 colonne de type int
 glo->tmodr = gtk_list_store_new( 1, G_TYPE_INT );
-list_store_resize( glo->tmodr, 9 );
+#ifdef PRINT_64
+list_store_resize( glo->tmodr, 18 );
+#else
+list_store_resize( glo->tmodr, 10 );
+#endif
 
 // la vue
 curwidg = gtk_tree_view_new();
@@ -286,7 +290,12 @@ glo->notr = curwidg;
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Registers") );
+#ifdef PRINT_64
+gtk_widget_set_size_request (curwidg, 160, 450);
+#else
 gtk_widget_set_size_request (curwidg, 110, 260);
+#endif
+
 glo->scwr = curwidg;
 
 curwidg = mk_reg_view( glo );
@@ -304,7 +313,7 @@ glo->scw2 = curwidg;
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notr ), curwidg, gtk_label_new("Disassembly") );
-gtk_widget_set_size_request (curwidg, 200, 100);
+gtk_widget_set_size_request (curwidg, 760, 100);
 glo->scwl = curwidg;
 
 glo->mdisa = mk_disa_menu( glo );
@@ -339,7 +348,6 @@ glo->tlism = curwidg;
 curwidg = glo->t.create();
 gtk_paned_pack2( GTK_PANED(glo->vpan), curwidg, TRUE, FALSE );
 gtk_widget_set_size_request( curwidg, 700, 200 );
-// gtk_widget_set_usize( curwidg, 700, 200 );
 glo->wtran = curwidg;
 
 // boite horizontale
@@ -354,7 +362,6 @@ gtk_signal_connect( GTK_OBJECT( curwidg ), "activate",
                     GTK_SIGNAL_FUNC( cmd_call ), (gpointer)glo );
 gtk_entry_set_editable( GTK_ENTRY(curwidg), TRUE );
 gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
-// gtk_widget_set_usize( curwidg, 250, 0 );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0);
 glo->ecmd = curwidg;
 

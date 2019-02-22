@@ -4,6 +4,18 @@
 #define UTF8_TRIANGLE	"\xe2\x96\xba"
 #define UTF8_CIRCLE	"\xe2\x97\x8f"
 
+#ifdef __amd64
+#define PRINT_64
+#endif
+
+#ifdef	PRINT_64
+#define OPT_FMT "%016llX"
+typedef unsigned long long opt_type;
+#else
+#define OPT_FMT "%08X"
+typedef unsigned int opt_type;
+#endif
+
 /*glo->t.printf(
 "stop     238a |\xe2\x8e\x8a|\n"
 "continue 23EF |\xe2\x8f\xaf|\n"
@@ -74,6 +86,8 @@ unsigned int ip_in_list;	// indice de la ligne de eip dans le listing courant
 
 int option_child_console;	// pour debug d'un prog qui utilise stdout et/ou stdin
 int option_flavor;		// 0 = AT&T, 1 = Intel
+unsigned int option_ramblock;	// number of bytes for RAM read
+int option_toggles;		// etat initial des check_buttons
 unsigned int exp_N;		// entier generique pour experiences
 
 } glostru;

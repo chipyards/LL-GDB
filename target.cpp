@@ -119,12 +119,13 @@ if	( fil == NULL )
 	}
 if	( fil )
 	{
-	char lbuf[256]; unsigned int pos;
-	while	( fgets( lbuf, sizeof( lbuf ), fil ) )
+	char lbuf[256]; int pos;
+	while	( fgets( lbuf, sizeof( lbuf ), fil ) )	// aucune confiance dans ce fgets
 		{
-		pos = strlen( lbuf ) - 1;	// enlever line end et trailing blanc
-		while	( ( pos >= 0 ) && ( lbuf[pos] <= ' ' ) )
-			lbuf[pos--] = 0;
+		lbuf[sizeof(lbuf)-1] = 0;		// il peut omettre le terminateur
+		pos = (int)strlen(lbuf) - 1;
+		while	( ( pos >= 0 ) && ( lbuf[pos] <= ' ' ) ) // ou rendre une chaine vide
+			lbuf[pos--] = 0;			 // on enleve line end et trailing blank
 		lines.push_back( string( lbuf ) );
 		}
 	fclose( fil );
