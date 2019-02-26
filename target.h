@@ -111,12 +111,25 @@ vector <unsigned int> w32;	// 32-bit words
 void txt2w32( const char * txt );	// parser les bytes en hex --> w32
 };
 
-typedef enum { Ready=0, Running=1, Disas=2, Registers=4, RAM=8, Breaks=16, Init=0x1000 } status_enum;
+// liste des jobs, par ordre de priorite decroissante
+typedef enum { GDBSet=0, File, FileInfo, BreakSetKill, BreakList, Run, Continue, RegNames, RegVal, Disass, RAMRead } job_enum;
+#define QJOB 11	// nombre de jobs prevus dans cette enum A MAINTENIR A LA MAIN!!!
+#define QUEUED_BIT	1	// bit pour un job dans job_status
+#define RUNNING_BIT	2
+#define ERROR_BIT	4
+#define DONE_BIT	8
+#define CLEAR_BITS	(QUEUED_BIT|RUNNING_BIT|ERROR_BIT)	// all but DONE
+#define QUEUED_MASK	0x1111111111111111LL
+#define RUNNING_MASK	0x2222222222222222LL
+#define ERROR_MASK	0x4444444444444444LL
 
 class target {
 public:
-int status;
-string reason;	// reason of *stopped
+unsigned long long job_status;	// 4 bits/job
+string job_cmd[QJOB];		// commande courante pour chaque job
+string main_file_name;
+string reason;		// reason of *stopped
+string error_msg;
 regbank regs;
 vector <asmline> asmstock;
 map <unsigned long long, unsigned int> asmmap;
@@ -126,7 +139,7 @@ vector <listing> liststock;
 map <unsigned long long, unsigned int> breakpoints;
 vector <memory> ramstock;
 // constructeur
-target() : status(Init) {
+target() : job_status(0LL) {
 	asm_init();
 	memory badram;		// avoir toujours au moins une RAM, meme vide
 	badram.adr0 = 0;
@@ -173,14 +186,74 @@ const char * get_src_line( unsigned int ifil, unsigned int ilin ) {
 		}
 	else	return "(invalid src file)";
 	}
-void status_set( status_enum bit ) {
-	status |= (int)bit;
-	}
-void status_reset( status_enum bit ) {
-	status &= ~((int)bit);
-	}
 void add_break( unsigned int num, unsigned long long adr ) {
 	breakpoints[adr] = num;		// s'il existe deja on l'ecrase et l'ancien num est perdu...
+	}
+void job_set_cmd( const char * cmd, job_enum job ) {
+	job_cmd[job] = string( cmd );
+	}
+void job_set_queued( job_enum job ) {
+	job_status |= ( (long long)QUEUED_BIT << (((unsigned int)job)<<2) );
+	}
+bool job_is_queued( job_enum job ) {
+	return ( ( job_status & ( (long long)QUEUED_BIT << (((unsigned int)job)<<2) ) ) != 0 );
+	}
+void job_set_running( job_enum job ) {
+	job_status &= (~( (long long)CLEAR_BITS << (((unsigned int)job)<<2) ));
+	job_status |= ( (long long)RUNNING_BIT << (((unsigned int)job)<<2) );
+	}
+void job_reset_running( job_enum job ) {
+	job_status &= (~( (long long)RUNNING_BIT << (((unsigned int)job)<<2) ));
+	}
+void job_set_error( job_enum job ) {
+	job_status &= (~( (long long)CLEAR_BITS << (((unsigned int)job)<<2) ));
+	job_status |= ( (long long)ERROR_BIT << (((unsigned int)job)<<2) );
+	}
+void job_queue_cmd( const char * cmd, job_enum job ) {
+	job_set_cmd( cmd, job );
+	job_set_queued( job );
+	}
+bool job_isanyqueued() {
+	return ( ( job_status & QUEUED_MASK ) != 0 );
+	}
+bool job_isanyrunning() {
+	return ( ( job_status & RUNNING_MASK ) != 0 );
+	}
+bool job_isanyerror() {
+	return ( ( job_status & ERROR_MASK ) != 0 );
+	}
+int job_nextqueued() {
+	unsigned long long q = job_status;
+	int ijob = 0;
+	while	( ijob < QJOB )
+		{
+		if	( (int)q & QUEUED_BIT )
+			return ijob;
+		q >>= 4; ++ijob;
+		}
+	return -1;
+	}
+int job_running() {
+	unsigned long long q = job_status;
+	int ijob = 0;
+	while	( ijob < QJOB )
+		{
+		if	( (int)q & RUNNING_BIT )
+			return ijob;
+		q >>= 4; ++ijob;
+		}
+	return -1;
+	}
+void job_dump() {
+	unsigned long long q = job_status;
+	for	( int ijob = 0; ijob < QJOB; ++ijob )
+		{
+		printf("%c%c%c%c %s\n",
+			((int)q&QUEUED_BIT)?('Q'):('-'),((int)q&RUNNING_BIT)?('R'):('-'),
+			((int)q&ERROR_BIT)?('E'):('-'),((int)q&DONE_BIT)?('D'):('-'), job_cmd[ijob].c_str() );
+		q >>= 4;
+		}
+	printf("\n"); fflush(stdout);
 	}
 };
 

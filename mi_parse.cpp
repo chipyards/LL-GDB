@@ -282,7 +282,9 @@ static unsigned int number;
 int ss = stac.size();
 switch	( retval )
 	{		// N.B. il faudra optimiser l'ordre des tests en fonction de la frequence des cas ;-)
-	case 1: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )	// short circuit eval ;-)
+			// refactoriser et mutualiser
+	case 1:	// fin de valeur
+		if	( ( ss ) && ( stac.back().nam == string("register-names") ) )	// short circuit eval ;-)
 			targ->regs.add_reg_name( val );
 		else if	( ( ss ) && ( stac.back().nam == string("src_and_asm_line") ) )
 			{
@@ -335,33 +337,52 @@ switch	( retval )
 				targ->ramstock[0].txt2w32( val.c_str() );
 				}
 			}
-		else if	( nam == "reason" )
-			targ->reason = val;
+		else if	( ( ss ) && ( stac.back().nam == string("*stopped") ) )
+			{
+			if	( nam == "reason" )
+				targ->reason = val;
+			}
+		else if	( ( ss ) && ( stac.back().nam == string("^error") ) )
+			{
+			if	( nam == "msg" )
+				targ->error_msg = val;
+			}
 		break;
-	case 2: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
+	case 2:	// debut de conteneur nomme
+		if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
 			targ->regs.start_reg_names();
 		if	( ( ss ) && ( stac.back().nam == string("BreakpointTable") ) )
 			targ->breakpoints.clear();
 		break;
-	case 3: if	( ( ss >= 2 ) && (
+	case 3: // debut de conteneur anonyme
+		if	( ( ss >= 2 ) && (
 				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
 				( stac[stac.size()-2].nam == string("asm_insns") )
 				)
 			)
 			curasm.init();
 		break;
-	case 4: if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
-			targ->status_reset(Init);
-		if	( ( ss ) && ( stac.back().nam == string("asm_insns") ) )
-			targ->status_reset(Disas);
-		if	( ( ss ) && ( stac.back().nam == string("register-values") ) )
-			targ->status_reset(Registers);
-		if	( ( ss ) && ( stac.back().nam == string("BreakpointTable") ) )
-			targ->status_reset(Breaks);
-		if	( ( ss ) && ( stac.back().nam == string("memory") ) )
-			targ->status_reset(RAM);
+	case 4: // fin de conteneur nomme
+		if	( ( ss ) && ( stac.back().nam == string("register-names") ) )
+			targ->job_reset_running(RegNames);
+		else if	( ( ss ) && ( stac.back().nam == string("asm_insns") ) )
+			targ->job_reset_running(Disass);
+		else if	( ( ss ) && ( stac.back().nam == string("register-values") ) )
+			targ->job_reset_running(RegVal);
+		else if	( ( ss ) && ( stac.back().nam == string("BreakpointTable") ) )
+			targ->job_reset_running(BreakList);
+		else if	( ( ss ) && ( stac.back().nam == string("memory") ) )
+			targ->job_reset_running(RAMRead);
+		else if	( ( ss >= 2 ) &&
+				(
+				( stac.back().nam == string("bkpt") ) &&
+				( stac[stac.size()-2].nam == string("^done") )
+				)
+			)
+			targ->job_reset_running(BreakSetKill);
 		break;
-	case 5: if	( ( ss >= 2 ) && (
+	case 5: // fin de conteneur anonyme
+		if	( ( ss >= 2 ) && (
 				( stac[stac.size()-2].nam == string("line_asm_insn") ) ||
 				( stac[stac.size()-2].nam == string("asm_insns") )
 				)
@@ -393,10 +414,32 @@ switch	( retval )
 				}
 			}
 		break;
-	case 6: break;
-	case 7: break;
-	case 8: break;
-	case 9: break;
+	case 6: // debut de conteneur report
+		break;
+	case 7: // fin de conteneur report vide
+		if	( nam == string("^done") )
+			{
+			targ->job_reset_running(BreakSetKill);
+			targ->job_reset_running(GDBSet);
+			}
+		break;
+	case 8: // fin de conteneur report
+		if	( ( ss ) && ( stac.back().nam == string("*stopped") ) )
+			{
+			targ->job_reset_running(Run);
+			targ->job_reset_running(Continue);
+			}
+		else if	( ( ss ) && ( stac.back().nam == string("^error") ) )
+			{
+			int ijob = targ->job_running();
+			if	( ijob >= 0 )
+				{
+				targ->job_set_error((job_enum)ijob);
+				}
+			}
+		break;
+	case 9: // fin de stream-output
+		break;
 	}
 return 0;
 }

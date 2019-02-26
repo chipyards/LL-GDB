@@ -56,24 +56,67 @@ void refresh( glostru * glo );
 void some_stats( glostru * glo )
 {
 glo->t.printf("%d (%d) asm lines\n", glo->targ->asmmap.size(), glo->targ->asmstock.size() );
-//for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
+// for	( unsigned int i = 0; i < glo->targ->asmstock.size(); ++i )
 //	glo->targ->asmstock[i].dump();
 for	( unsigned int i = 0; i < glo->targ->filestock.size(); ++i )
-	printf("fichier src : %s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
+	glo->t.printf("fichier src : %s %s\n", glo->targ->filestock[i].relpath.c_str(), glo->targ->filestock[i].abspath.c_str() );
 unsigned int qlist = glo->targ->liststock[glo->ilist].lines.size();
 glo->t.printf("%d listing lines\n", qlist );
 glo->t.printf("%d disass model rows\n", list_store_cnt( glo->tmodl ) );
 glo->t.printf("%d breakpoints\n", glo->targ->breakpoints.size() );
 glo->t.printf("RAM data %u words @ 0x%08X\n", (unsigned int)glo->targ->ramstock[0].w32.size(), (unsigned int)glo->targ->ramstock[0].adr0 );
 glo->t.printf("%d RAM model rows\n", list_store_cnt( glo->tmodm ) );
+glo->t.printf("job_status=%010llX\n", glo->targ->job_status );
+glo->targ->job_dump();
 }
 
 
 // envoyer une commande a GDB, avec echo optionnel dans le transcript (N.B. LF sera ajoute automatiquement)
 void send_cmd( glostru * glo, const char * cmd )
 {
+//if	( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog1) ) )
+//	glo->t.printf("> %s\n", cmd );
+//glo->dad->send_cmd( cmd );
+//glo->dad->send_cmd( "\n" );
+
+}
+
+// mettre dans la queue une commande pour GDB, avec echo optionnel dans le transcript (N.B. LF sera ajoute automatiquement)
+void queue_cmd( glostru * glo, const char * cmd, job_enum job  )
+{
 if	( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog1) ) )
-	glo->t.printf("> %s\n", cmd );
+	glo->t.printf(">q %s\n", cmd );
+glo->targ->job_queue_cmd( cmd, job );
+}
+
+// demarrer le prochain job de la queue, s'il existe et si c'est possible
+void next_run( glostru * glo )
+{
+if	( glo->targ->job_isanyrunning() )
+	return;
+if	( glo->targ->job_isanyerror() )
+	{
+	if	( glo->targ->reason == string("exited-normally") )
+		{
+		glo->t.printf(": %s\n", glo->targ->reason.c_str() );
+		modpop( "Info", "program exited normally", GTK_WINDOW(glo->wmain) );
+		}
+	else	{
+		glo->t.printf("E %s\n", glo->targ->error_msg.c_str() );
+		modpop( "Error", glo->targ->error_msg.c_str(), GTK_WINDOW(glo->wmain) );
+		}
+	glo->targ->job_status &= (~(ERROR_MASK));
+	return;
+	}
+if	( glo->targ->job_isanyqueued() == 0 )
+	return;
+int ijob = glo->targ->job_nextqueued();
+if	( ijob < 0 )
+	return;
+const char * cmd = glo->targ->job_cmd[ijob].c_str();
+glo->targ->job_set_running( (job_enum)ijob );
+if	( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog1) ) )
+	glo->t.printf(">r %s\n", cmd );
 glo->dad->send_cmd( cmd );
 glo->dad->send_cmd( "\n" );
 }
@@ -81,15 +124,12 @@ glo->dad->send_cmd( "\n" );
 void expa( glostru * glo )
 {
 refresh( glo );
-send_cmd( glo, "-break-delete" );
-send_cmd( glo, "-break-list" );
-glo->targ->status_set( Breaks );
+glo->targ->job_status &= (~RUNNING_MASK);	// PROVIZOAR
 }
 
 
 void expb( glostru * glo )
 {
-glo->targ->status = Ready;
 some_stats( glo );
 }
 
@@ -132,22 +172,14 @@ if	( ip_asm_line >= 0 )
 		}
 	}
 else	{ // NON allons desassembler si possible
-	if	( glo->targ->status != Ready )
-		glo->t.printf( "il faut attendre pour desassembler\n");
-	else	{
-		unsigned long long adr;
-		adr = glo->targ->get_ip();
-		if	( adr )
-			{
-			char tbuf[128];
-			if	( glo->option_flavor )
-				send_cmd( glo, "-gdb-set disassembly-flavor intel");
-			else	send_cmd( glo, "-gdb-set disassembly-flavor att");
-			snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x" OPT_FMT " -e 0x" OPT_FMT " -- 5",
-							(opt_type)adr, glo->exp_N + (opt_type)adr );
-			glo->timor = 60; send_cmd( glo, tbuf );
-			glo->targ->status_set( Disas );
-			}
+	unsigned long long adr;
+	adr = glo->targ->get_ip();
+	if	( ( adr ) && ( !glo->targ->job_is_queued(Disass) ) )
+		{
+		char tbuf[128];
+		snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x" OPT_FMT " -e 0x" OPT_FMT " -- 5",
+						(opt_type)adr, glo->exp_N + (opt_type)adr );
+		queue_cmd( glo, tbuf, Disass );
 		}
 	}
 }
@@ -164,25 +196,27 @@ gtk_widget_queue_draw( glo->tlism );
 }
 
 // cette fonction pretend assurer les etapes de demarrage
-// on ne doit l'appeler que si glo->targ->status == Init
 void init_step( glostru *glo )
 {
-send_cmd( glo, "-data-list-register-names");
+queue_cmd( glo, "-data-list-register-names", RegNames );
 if	( glo->option_child_console )
-	send_cmd( glo, "-gdb-set new-console on");
-//if	( glo->option_flavor )
-//	send_cmd( glo, "-gdb-set disassembly-flavor intel");	// else att
+	queue_cmd( glo, "-gdb-set new-console on", GDBSet );
 // send_cmd( glo, "-gdb-set mi-async on");	// marche PO sous windows
-send_cmd( glo, "-exec-run --start");	// ici GDB met un bk temporaire sur main
-send_cmd( glo, "-data-list-register-values x");
-glo->targ->status_set( Registers );
+queue_cmd( glo, "-exec-run --start", Run );	// ici GDB met un bk temporaire sur main
+queue_cmd( glo, "-data-list-register-values x", RegVal );
+glo->targ->job_dump();
 }
 
 /** ============================ widget call backs ======================= */
 
 void cmd_call( GtkWidget *widget, glostru * glo )
 {
-send_cmd( glo, gtk_entry_get_text( GTK_ENTRY(widget) ) );
+const char * cmd;
+cmd = gtk_entry_get_text( GTK_ENTRY(widget) );
+if	( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog1) ) )
+	glo->t.printf("> %s\n", cmd );
+glo->dad->send_cmd( cmd );
+glo->dad->send_cmd( "\n" );
 gtk_entry_set_text( GTK_ENTRY(widget), "" );
 }
 
@@ -238,7 +272,7 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			}
 		if	( ( !tog2 ) && ( !tog3 ) && ( retval == 8 ) )
 			{
-			// PROVISOAR : *stopped devrait etre interprete par mi_parse et reporte dans targ->status
+			// PROVISOAR : *stopped devrait etre interprete par mi_parse et reporte dans targ->job_status
 			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
 				{	// hum! human readable code interpreted by machine !
 				if	( strncmp( tbuf, "fin report *stopped", 19 ) == 0 )
@@ -247,16 +281,15 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			}
 		}
 	}	// while child_getc()
-if	( glo->targ->status != Ready  )
+if	( glo->targ->job_isanyrunning()  )
 	{
 	static GdkColor laranja = { 0, 0xFF00, 0xA000, 0x4000 };
 	gtk_widget_modify_base( glo->ecmd, GTK_STATE_NORMAL, &laranja );
-	if	( glo->targ->status == Init  )
-		init_step( glo );
 	}
 else	{
 	gtk_widget_modify_base( glo->ecmd, GTK_STATE_NORMAL, NULL );
 	}
+next_run( glo );
 return( -1 );
 }
 
@@ -275,22 +308,22 @@ switch	( aname[0] )
 	case 'r' :			// run
 		switch	( aname[1] )
 			{
-			case 'e' : send_cmd( glo, "-exec-run --start");		break;
-			case 'u' : send_cmd( glo, "-exec-continue");		break;
-			case 'p' : send_cmd( glo, "-exec-interrupt");		break;
+			case 'e' : queue_cmd( glo, "-exec-run --start", Run );		break;
+			case 'u' : queue_cmd( glo, "-exec-continue", Continue );		break;
+			// case 'p' : queue_cmd( glo, "-exec-interrupt");		break;
 			case 'c' : break;
 			} get++; break;
 	case 's' :			// steps
 		switch	( aname[1] )
 			{
-			case 'i' : send_cmd( glo, "-exec-step-instruction");	break;
-			case 'v' : send_cmd( glo, "-exec-next-instruction");	break;
-			case 'o' : send_cmd( glo, "-exec-finish");		break;
+			case 'i' : queue_cmd( glo, "-exec-step-instruction", Continue );	break;
+			case 'v' : queue_cmd( glo, "-exec-next-instruction", Continue );	break;
+			case 'o' : queue_cmd( glo, "-exec-finish", Continue );			break;
 			} get++; break;
 	case 'b' :			// break
 		switch	( aname[1] )
 			{
-			case 't' : send_cmd( glo, "-break-insert main");	break;
+			case 't' : queue_cmd( glo, "-break-insert main", BreakSetKill );	break;
 			case 'e' : break;
 			} break;
 	case 'e' :			// experimental
@@ -304,15 +337,13 @@ switch	( aname[0] )
 	}
 if	( get )
 	{
-	send_cmd( glo, "-data-list-register-values x");
-	glo->targ->status_set( Registers );
+	queue_cmd( glo, "-data-list-register-values x", RegVal );
 	char tbuf[128];
 	if	( glo->targ->ramstock[0].adr0 > 0 )
 		{
 		snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x" OPT_FMT " %u",
 			  (opt_type)glo->targ->ramstock[0].adr0, glo->option_ramblock );
-		send_cmd( glo, tbuf);
-		glo->targ->status_set( RAM );
+		queue_cmd( glo, tbuf, RAMRead );
 		}
 	}
 }
@@ -328,8 +359,7 @@ gtk_entry_set_text( GTK_ENTRY(widget), tbuf );
 if	( adr > 0 )			// un peu foolproof mais pas trop
 	{
 	snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x" OPT_FMT " %u", (opt_type)adr, glo->option_ramblock );
-	send_cmd( glo, tbuf);
-	glo->targ->status_set( RAM );
+	queue_cmd( glo, tbuf, RAMRead );
 	}
 }
 
@@ -349,18 +379,23 @@ if	( adr )
 	else	{
 		snprintf( tbuf, sizeof(tbuf), "-break-insert *0x" OPT_FMT, (opt_type)adr );
 		}
-	send_cmd( glo, tbuf );
+	queue_cmd( glo, tbuf, BreakSetKill );
 	}
-send_cmd( glo, "-break-list" );
-glo->targ->status_set( Breaks );
+queue_cmd( glo, "-break-list", BreakList );
 }
 
 void disa_call_flavor( GtkWidget *widget, glostru * glo )
 {
 glo->option_flavor ^= 1;
 if	( glo->option_flavor )
+	{
 	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (Intel flavor)" );
-else	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (AT&T flavor)" );
+	queue_cmd( glo, "-gdb-set disassembly-flavor intel", GDBSet );
+	}
+else	{
+	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (AT&T flavor)" );
+	queue_cmd( glo, "-gdb-set disassembly-flavor att", GDBSet );
+	}
 glo->targ->asm_init();
 update_disass( glo );
 }
@@ -583,8 +618,8 @@ static GtkActionEntry ui_entries[] = {
   { "rcu",	 	NULL, "Run to Cursor",		"<alt>F5",	NULL, G_CALLBACK(action_call) },
   { "btog", 		NULL, "Toggle Breakpoint",	"F9",		NULL, G_CALLBACK(action_call) },
   { "bena",	 	NULL, "Enable/Disable Break",	"<control>F9",	NULL, G_CALLBACK(action_call) },
-  { "expa",	 	NULL, "Exp A",			"<control>A",	NULL, G_CALLBACK(action_call) },
-  { "expb",	 	NULL, "Exp B",			"<control>B",	NULL, G_CALLBACK(action_call) },
+  { "expa",	 	NULL, "Exp A",			"A",		NULL, G_CALLBACK(action_call) },
+  { "expb",	 	NULL, "Exp B",			"B",		NULL, G_CALLBACK(action_call) },
 };
 
 // menu descriptions
@@ -705,9 +740,10 @@ if	( argc > 1 )
 
 	retval = glo->dad->start_child( tbuf );
 	if	( retval )
-	glo->t.printf("Error daddy %d\n", retval );
+		glo->t.printf("Error daddy %d\n", retval );
+	else	init_step( glo );
 	}
-else	gasp("need an executable file name");
+else	glo->t.printf("need an executable file name");
 
 // modpop( "test", "before gtk_main", GTK_WINDOW(glo->wmain) );
 
