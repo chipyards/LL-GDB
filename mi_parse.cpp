@@ -320,7 +320,13 @@ switch	( retval )
 			)
 			{
 			if	( nam == string("address") ) curasm.set_adr( val );
-			else if	( nam == string("opcodes") ) curasm.count_the_bytes( val );
+			else if	( nam == string("opcodes") )
+				{
+				// curasm.count_the_bytes( val );
+				if	( targ->option_binvis )
+					curasm.parse_the_bytes( val.c_str() );
+				else	curasm.count_the_bytes( val );
+				}
 			else if	( nam == string("inst") ) curasm.asmsrc = val;
 			}
 		else if	( ( ss >= 2 ) && ( stac[stac.size()-2].nam == string("memory") ) )

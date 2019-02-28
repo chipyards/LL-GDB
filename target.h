@@ -40,12 +40,12 @@ registro * get_rsp() { return &(regs[isp]); };
 registro * get_rbp() { return &(regs[ibp]); };
 };
 
-#define MAXOPBYTES 8
+#define MAXOPBYTES 16
 
 class asmline {		// one line of disassembled code (may come with some source lines)
 public:
 unsigned long long adr;
-unsigned char bin[MAXOPBYTES];	// variable length executable code
+unsigned char bytes[MAXOPBYTES];	// variable length executable code
 unsigned int qbytes;	// number of bytes making the executable code
 int src0;		// first source line, or -1 if none
 int src1;		// last source line (inclusive)
@@ -61,6 +61,7 @@ unsigned long long nextadr() {			// adr instr. suivante
 void count_the_bytes( string rawbytes ) {	// taille du code executable
 	qbytes = ( rawbytes.size() + 1 )/ 3;
 	};
+void parse_the_bytes( const char * txt );	// parsing du code executable
 void dump() {					// just for debug
 	if	( src0 >=0 )
 		printf("         src(%4d,%4d) file %d\n", src0, src1, isrc );
@@ -138,8 +139,9 @@ map <string, unsigned int> filemap;
 vector <listing> liststock;
 map <unsigned long long, unsigned int> breakpoints;
 vector <memory> ramstock;
+int option_binvis;
 // constructeur
-target() : job_status(0LL) {
+target() : job_status(0LL), option_binvis(0) {
 	asm_init();
 	memory badram;		// avoir toujours au moins une RAM, meme vide
 	badram.adr0 = 0;

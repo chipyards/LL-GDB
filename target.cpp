@@ -168,3 +168,25 @@ do	{
 	w32.push_back( v );
 	} while ( d >= 0 );
 }
+
+// parsing du code executable
+void asmline::parse_the_bytes( const char * txt )
+{
+unsigned int ib = 0, c; int d;
+while	( ib < MAXOPBYTES )
+	{
+	c = *(txt++);
+	if	( c == ' ' )	// ignorer le blanc devant un byte, il ne sert a rien
+		c = *(txt++);
+	if	( c == 0 )
+		break;
+	d = hex_digit[c] << 4;
+	c = *(txt++);
+	if	( c == 0 )
+		break;
+	d |= hex_digit[c];
+	if	( d >= 0 )
+                bytes[ib++] = d;
+	}
+qbytes = ib;
+}

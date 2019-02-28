@@ -53,6 +53,7 @@ GtkWidget *             mdisa;		// context menu
 GtkWidget *               itbk;		// menu item for breakpoint
 unsigned long long	bkadr;		// addr for breakpoint
 GtkTreeViewColumn *     adrcol;		// assembly adr column
+GtkTreeViewColumn *     bincol;		// assembly bin column
 GtkTreeViewColumn *     asmcol;		// assembly src column
 
 GtkWidget *         vram;		// boite verticale
@@ -86,6 +87,7 @@ unsigned int ip_in_list;	// indice de la ligne de eip dans le listing courant
 
 int option_child_console;	// pour debug d'un prog qui utilise stdout et/ou stdin
 int option_flavor;		// 0 = AT&T, 1 = Intel
+// int option_binvis;		// (cette option est dans la classe target)
 unsigned int option_ramblock;	// number of bytes for RAM read
 int option_toggles;		// etat initial des check_buttons
 unsigned int exp_N;		// entier generique pour experiences
@@ -110,7 +112,9 @@ void mk_the_gui( glostru * glo );
 /** widget callbacks ------------------------------*/
 
 void disa_call_bk( GtkWidget *widget, glostru * glo );
+void disa_call_bk_all( GtkWidget *widget, glostru * glo );
 void disa_call_flavor( GtkWidget *widget, glostru * glo );
+void disa_call_binvis( GtkWidget *widget, glostru * glo );
 gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void ram_adr_call( GtkWidget *widget, glostru * glo );
 void cmd_call( GtkWidget *widget, glostru * glo );

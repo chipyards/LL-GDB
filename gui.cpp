@@ -176,9 +176,9 @@ else	{ // NON allons desassembler si possible
 	adr = glo->targ->get_ip();
 	if	( ( adr ) && ( !glo->targ->job_is_queued(Disass) ) )
 		{
-		char tbuf[128];
-		snprintf( tbuf, sizeof(tbuf), "-data-disassemble -s 0x" OPT_FMT " -e 0x" OPT_FMT " -- 5",
-						(opt_type)adr, glo->exp_N + (opt_type)adr );
+		char tbuf[128];	// this fmt var below is to avoid bogus MinGW warnings about %llX
+		const char * fmt = "-data-disassemble -s 0x" OPT_FMT " -e 0x" OPT_FMT " -- 5";
+		snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr, glo->exp_N + (opt_type)adr );
 		queue_cmd( glo, tbuf, Disass );
 		}
 	}
@@ -338,11 +338,10 @@ switch	( aname[0] )
 if	( get )
 	{
 	queue_cmd( glo, "-data-list-register-values x", RegVal );
-	char tbuf[128];
 	if	( glo->targ->ramstock[0].adr0 > 0 )
 		{
-		snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x" OPT_FMT " %u",
-			  (opt_type)glo->targ->ramstock[0].adr0, glo->option_ramblock );
+		char tbuf[128]; const char * fmt = "-data-read-memory-bytes 0x" OPT_FMT " %u";
+		snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)glo->targ->ramstock[0].adr0, glo->option_ramblock );
 		queue_cmd( glo, tbuf, RAMRead );
 		}
 	}
@@ -350,15 +349,17 @@ if	( get )
 
 void ram_adr_call( GtkWidget *widget, glostru * glo )
 {
-char tbuf[128];
+char tbuf[128]; const char * fmt;
 unsigned long long adr;
 adr = strtoull( gtk_entry_get_text( GTK_ENTRY(widget) ), NULL, 16 );	// accepte 0x ou hex brut
 adr &= (~(unsigned long long)7);	// alignement autoritaire sur 64 bits
-snprintf( tbuf, sizeof(tbuf), "0x" OPT_FMT, (opt_type)adr );
+fmt = "0x" OPT_FMT;
+snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr );
 gtk_entry_set_text( GTK_ENTRY(widget), tbuf );
 if	( adr > 0 )			// un peu foolproof mais pas trop
 	{
-	snprintf( tbuf, sizeof(tbuf), "-data-read-memory-bytes 0x" OPT_FMT " %u", (opt_type)adr, glo->option_ramblock );
+	fmt = "-data-read-memory-bytes 0x" OPT_FMT " %u";
+	snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr, glo->option_ramblock );
 	queue_cmd( glo, tbuf, RAMRead );
 	}
 }
@@ -377,10 +378,17 @@ if	( adr )
 		snprintf( tbuf, sizeof(tbuf), "-break-delete %u", bknum );
 		}
 	else	{
-		snprintf( tbuf, sizeof(tbuf), "-break-insert *0x" OPT_FMT, (opt_type)adr );
+		const char * fmt = "-break-insert *0x" OPT_FMT;
+		snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr );
 		}
 	queue_cmd( glo, tbuf, BreakSetKill );
 	}
+queue_cmd( glo, "-break-list", BreakList );
+}
+
+void disa_call_bk_all( GtkWidget *widget, glostru * glo )
+{
+queue_cmd( glo, "-break-delete", BreakSetKill );
 queue_cmd( glo, "-break-list", BreakList );
 }
 
@@ -396,11 +404,25 @@ else	{
 	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (AT&T flavor)" );
 	queue_cmd( glo, "-gdb-set disassembly-flavor att", GDBSet );
 	}
-glo->targ->asm_init();
+glo->targ->asm_init();	// effacer tout le disassembly
 update_disass( glo );
 }
 
-// une call back pour le right-clic
+void disa_call_binvis( GtkWidget *widget, glostru * glo )
+{
+glo->targ->option_binvis ^= 1;
+if	( glo->targ->option_binvis )
+	{
+	gtk_tree_view_column_set_visible( glo->bincol, TRUE );
+	}
+else	{
+	gtk_tree_view_column_set_visible( glo->bincol, FALSE );
+	}
+glo->targ->asm_init();	// effacer tout le disassembly
+update_disass( glo );
+}
+
+// une call back pour le right-clic --> context menu
 gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo )
 {
 /* single click with the right mouse button? */
@@ -435,10 +457,11 @@ if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
 			unsigned long long adr = glo->targ->asmstock[(unsigned int)ref].adr;
 			glo->bkadr = adr;
 			// on copie l'adresse en ascii dans le label de l'item !
-			char tbuf[128];
+			char tbuf[128]; const char * fmt;
 			if	( glo->targ->is_break( adr ) )
-				snprintf( tbuf, sizeof(tbuf), "kill breakpoint at 0x" OPT_FMT, (opt_type)adr );
-			else	snprintf( tbuf, sizeof(tbuf), "set breakpoint at 0x" OPT_FMT, (opt_type)adr );
+				fmt = "kill breakpoint at 0x" OPT_FMT;
+			else	fmt = "set breakpoint at 0x" OPT_FMT;
+			snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr );
 			gtk_menu_item_set_label( (GtkMenuItem *)glo->itbk, tbuf);
 			}
 		gtk_menu_popup( (GtkMenu *)glo->mdisa, NULL, NULL, NULL, NULL, event->button, event->time );
@@ -490,28 +513,40 @@ if	( ref < 0 )
 		{
 		g_object_set( rendy, "text", glo->targ->get_src_line( ifil, ilin ), NULL );
 		}
+	else if	( tree_column == glo->bincol )
+		{
+		g_object_set( rendy, "text", "", NULL );
+		}
 	}
 else	{		// ligne asm
 	asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
 	if	( tree_column == glo->adrcol )
 		{
 		unsigned long long adr = daline->adr;
+		const char * fmt;
 		if	( adr == glo->targ->get_ip() )
 			{
 			if	( glo->targ->is_break( adr ) )
-				snprintf( text, sizeof(text), MARGIN_BKIP OPT_FMT, (opt_type)adr );
-			else	snprintf( text, sizeof(text), MARGIN_IP OPT_FMT,   (opt_type)adr );
+				fmt = MARGIN_BKIP OPT_FMT;
+			else	fmt = MARGIN_IP OPT_FMT;
 			}
 		else	{
 			if	( glo->targ->is_break( adr ) )
-				snprintf( text, sizeof(text), MARGIN_BK OPT_FMT,   (opt_type)adr );
-			else	snprintf( text, sizeof(text), MARGIN_NONE OPT_FMT, (opt_type)adr );
+				fmt = MARGIN_BK OPT_FMT;
+			else	fmt = MARGIN_NONE OPT_FMT;
 			}
+		snprintf( text, sizeof(text), fmt, (opt_type)adr );
 		g_object_set( rendy, "markup", text, NULL );
 		}
 	else if	( tree_column == glo->asmcol )
 		{
 		g_object_set( rendy, "text", daline->asmsrc.c_str(), NULL );
+		}
+	else if	( tree_column == glo->bincol )
+		{
+		for	( unsigned int ib = 0; ib < daline->qbytes; ++ib )
+			snprintf( text + (ib*3), sizeof(text) - (ib*3), "%02X ", daline->bytes[ib] );
+		g_object_set( rendy, "text", text, NULL );
 		}
 	}
 }
@@ -545,7 +580,7 @@ void regval_data_call( GtkTreeViewColumn * tree_column,
 {
 unsigned int i;
 int chng = 0;
-char text[64];
+char text[64]; const char * fmt;
 // recuperer notre index dans la colonne 0 du model
 gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
 // elaborer la donnee
@@ -554,10 +589,11 @@ if	( i < glo->targ->regs.regs.size() )
 	{
 	chng = glo->targ->regs.regs[i].changed;
 	#ifdef MARKUP_REG
-	snprintf( text, sizeof(text), "<span background=\"%s\">" OPT_FMT "</span>",
-		  chng?"#88DDFF":"#FFFFFF", (opt_type)glo->targ->regs.regs[i].val );
+	fmt = "<span background=\"%s\">" OPT_FMT "</span>";
+	snprintf( text, sizeof(text), fmt, chng?"#88DDFF":"#FFFFFF", (opt_type)glo->targ->regs.regs[i].val );
 	#else
-	snprintf( text, sizeof(text), "%08X", (unsigned int)glo->targ->regs.regs[i].val );
+	fmt = OPT_FMT;
+	snprintf( text, sizeof(text), fmt, (unsigned int)glo->targ->regs.regs[i].val );
 	#endif
 	}
 else	snprintf( text, sizeof(text), "?" );
@@ -577,14 +613,15 @@ void ram_data_call( GtkTreeViewColumn * tree_column,
                      glostru *         glo )
 {
 unsigned int i;
-char text[128];
+char text[128]; const char * fmt;
 // recuperer notre index dans la colonne 0 du model
 gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
 if	( tree_column == glo->madrcol )
 	{
 	unsigned long long adr = glo->targ->ramstock[0].adr0;
 	adr += i * 4;
-	snprintf( text, sizeof(text), OPT_FMT, (opt_type)adr );
+	fmt = OPT_FMT;
+	snprintf( text, sizeof(text), fmt, (opt_type)adr );
 	g_object_set( rendy, "text", text, NULL );
 	}
 else if	( tree_column == glo->mdatcol )
@@ -701,6 +738,7 @@ glo->ilist = 0;
 // option de CLI
 glo->option_child_console = 1;
 glo->option_flavor = 0;
+glo->targ->option_binvis = 0;
 glo->option_ramblock = 128;
 glo->option_toggles = 1;
 

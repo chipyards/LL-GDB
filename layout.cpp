@@ -39,6 +39,12 @@ gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 glo->itbk = curitem;
 gtk_widget_show ( curitem );
 
+curitem = gtk_menu_item_new_with_label("Kill All Breakpoints");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( disa_call_bk_all ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
 curitem = gtk_separator_menu_item_new();
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
@@ -46,6 +52,12 @@ gtk_widget_show ( curitem );
 curitem = gtk_menu_item_new_with_label("Change disassembly flavor");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( disa_call_flavor ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("Show/Hide Executable Code");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( disa_call_binvis ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
@@ -80,7 +92,21 @@ gtk_tree_view_column_set_resizable( curcol, TRUE );
 gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
 glo->adrcol = curcol;
 
-// la colonne valeur, avec data_func
+// la colonne binaire, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, "Executable Code" );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)disa_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_column_set_visible( curcol, FALSE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+glo->bincol = curcol;
+
+// la colonne source text, avec data_func
 renderer = gtk_cell_renderer_text_new();
 curcol = gtk_tree_view_column_new();
 
