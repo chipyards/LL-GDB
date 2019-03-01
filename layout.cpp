@@ -20,7 +20,7 @@ using namespace std;
 
 #include "gui.h"
 
-/** ============================ make widgets ======================= */
+/** ============================ make context menus ======================= */
 
 // create the disassembly view context menu
 GtkWidget * mk_disa_menu( glostru * glo )
@@ -63,6 +63,53 @@ gtk_widget_show ( curitem );
 
 return curmenu;
 }
+
+// create the memory view context menu
+GtkWidget * mk_ram_menu( glostru * glo )
+{
+GtkWidget * curmenu;
+GtkWidget * curitem;
+GSList * group = NULL;
+
+curmenu = gtk_menu_new ();    // Don't need to show menus, use gtk_menu_popup
+// gtk_menu_popup( (GtkMenu *)menu1_x, NULL, NULL, NULL, NULL, event->button, event->time );
+
+curitem = gtk_radio_menu_item_new_with_label( group, "Bytes (8-bit words)");
+group = gtk_radio_menu_item_get_group( GTK_RADIO_MENU_ITEM(curitem) );
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( ram_call_fmt ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+glo->itram8 = curitem;
+gtk_widget_show ( curitem );
+
+curitem = gtk_radio_menu_item_new_with_label( group, "Words (16-bit words)");
+group = gtk_radio_menu_item_get_group( GTK_RADIO_MENU_ITEM(curitem) );
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( ram_call_fmt ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+glo->itram16 = curitem;
+gtk_widget_show ( curitem );
+
+curitem = gtk_radio_menu_item_new_with_label( group, "DWords (32-bit words)");
+group = gtk_radio_menu_item_get_group( GTK_RADIO_MENU_ITEM(curitem) );
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( ram_call_fmt ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+glo->itram32 = curitem;
+gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), TRUE );	// defaut
+glo->ram_format = 32;							// defaut
+gtk_widget_show ( curitem );
+
+curitem = gtk_radio_menu_item_new_with_label( group, "QWords (32-bit words)");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( ram_call_fmt ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+glo->itram64 = curitem;
+gtk_widget_show ( curitem );
+
+return curmenu;
+}
+/** ============================ make the subwindows ======================= */
 
 // Create the disassembly view
 GtkWidget * mk_disa_view( glostru * glo )
@@ -150,11 +197,7 @@ GtkTreeSelection* cursel;
 
 // le modele : minimal, 1 colonne de type int
 glo->tmodr = gtk_list_store_new( 1, G_TYPE_INT );
-#ifdef PRINT_64
-list_store_resize( glo->tmodr, 18 );
-#else
-list_store_resize( glo->tmodr, 10 );
-#endif
+list_store_resize( glo->tmodr, glo->targ->regs.option_qregs );
 
 // la vue
 curwidg = gtk_tree_view_new();
@@ -248,7 +291,7 @@ gtk_widget_modify_font( curwidg, font_desc );
 pango_font_description_free( font_desc );
 
 // connecter callback pour right-clic (c'est la callback qui va identifier le right)
-// g_signal_connect( curwidg, "button-press-event", (GCallback)ram_right_call, (gpointer)glo );
+g_signal_connect( curwidg, "button-press-event", (GCallback)ram_right_call, (gpointer)glo );
 
 return(curwidg);
 }
@@ -366,6 +409,7 @@ gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, TRUE, TRUE, 0 );
 gtk_widget_set_size_request (curwidg, 200, 100);
 glo->scwm = curwidg;
 
+glo->mram = mk_ram_menu( glo );
 curwidg = mk_ram_view( glo );
 gtk_container_add( GTK_CONTAINER( glo->scwm ), curwidg );
 glo->tlism = curwidg;

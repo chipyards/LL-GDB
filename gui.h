@@ -71,6 +71,10 @@ GtkWidget *           scwm;		// scrollable window for memory
 GtkListStore *          tmodm;		// list model
 GtkWidget *             tlism;		// tree view used as list view
 GtkWidget *               mram;		// context menu
+GtkWidget *                 itram8;	// menu item for format
+GtkWidget *                 itram16;
+GtkWidget *                 itram32;
+GtkWidget *                 itram64;
 GtkTreeViewColumn *       madrcol;	// ram adr column
 GtkTreeViewColumn *       mdatcol;	// ram data column
 
@@ -89,7 +93,7 @@ transzcript t;
 daddy * dad;
 mi_parse * mipa;
 target * targ;
-int timor;			// timer, unite = idle loop = 31ms env. (30 fps)
+int ram_format;
 
 unsigned int ilist;		// indice du listing courant
 unsigned int ip_in_list;	// indice de la ligne de eip dans le listing courant
@@ -125,6 +129,8 @@ void disa_call_bk_all( GtkWidget *widget, glostru * glo );
 void disa_call_flavor( GtkWidget *widget, glostru * glo );
 void disa_call_binvis( GtkWidget *widget, glostru * glo );
 gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
+void ram_call_fmt( GtkWidget *widget, glostru * glo );
+gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void ram_adr_call( GtkWidget *widget, glostru * glo );
 void cmd_call( GtkWidget *widget, glostru * glo );
 

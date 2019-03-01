@@ -97,7 +97,10 @@ if	( glo->targ->job_isanyrunning() )
 	return;
 if	( glo->targ->job_isanyerror() )
 	{
-	if	( glo->targ->reason == string("exited-normally") )
+	if	(
+		( glo->targ->reason == string("exited-normally") ) ||
+		( glo->targ->reason == string("exited") )
+		)
 		{
 		glo->t.printf(": %s\n", glo->targ->reason.c_str() );
 		modpop( "Info", "program exited normally", GTK_WINDOW(glo->wmain) );
@@ -192,7 +195,7 @@ gtk_widget_queue_draw( glo->tlisl );
 gtk_widget_queue_draw( glo->tlisr );
 unsigned int s = glo->targ->ramstock[0].w32.size();	// hum ce n'est pas l'endroit ou faire ça
 if	( s > 0 )
-	list_store_resize( glo->tmodm, s );
+	list_store_resize( glo->tmodm, ((glo->ram_format==64)?(s/2):(s)) );
 gtk_widget_queue_draw( glo->tlism );
 }
 
@@ -472,6 +475,31 @@ if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
 return FALSE;				/* we did not handle this */
 }
 
+void ram_call_fmt( GtkWidget *widget, glostru * glo )
+{
+if	( widget == glo->itram8 )
+	glo->ram_format = 8;
+else if	( widget == glo->itram16 )
+	glo->ram_format = 16;
+else if	( widget == glo->itram32 )
+	glo->ram_format = 32;
+else if	( widget == glo->itram64 )
+	glo->ram_format = 64;
+refresh( glo );
+}
+
+// une call back pour le right-clic --> context menu
+gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo )
+{
+/* single click with the right mouse button? */
+if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
+	{
+	gtk_menu_popup( (GtkMenu *)glo->mram, NULL, NULL, NULL, NULL, event->button, event->time );
+	return TRUE;			/* we handled this */
+	}
+return FALSE;				/* we did not handle this */
+}
+
 /** ================= Gtk Tree View call backs ======================= */
 
 // N.B.
@@ -622,7 +650,7 @@ gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
 if	( tree_column == glo->madrcol )
 	{
 	unsigned long long adr = glo->targ->ramstock[0].adr0;
-	adr += i * 4;
+	adr += i * ((glo->ram_format==64)?(8):(4));
 	if	( adr == glo->targ->get_sp() )
 		fmt = MARGIN_SP OPT_FMT;
 	else if	( adr == glo->targ->get_bp() )
@@ -633,9 +661,45 @@ if	( tree_column == glo->madrcol )
 	}
 else if	( tree_column == glo->mdatcol )
 	{
-	if	( i < glo->targ->ramstock[0].w32.size() )
-		snprintf( text, sizeof(text), "%08X", glo->targ->ramstock[0].w32[i] );
-	else	snprintf( text, sizeof(text), "no data" );
+	switch	( glo->ram_format )
+		{
+		case 64 :
+			if	( (1+(2*i)) < glo->targ->ramstock[0].w32.size() )
+				{
+				fmt = "%08X%08X";
+				snprintf( text, sizeof(text), fmt,
+					glo->targ->ramstock[0].w32[1+(2*i)], glo->targ->ramstock[0].w32[2*i]  );
+				}
+			else	snprintf( text, sizeof(text), "no data" );
+			break;
+		case 8 :
+			if	( i < glo->targ->ramstock[0].w32.size() )
+				{
+				unsigned char * bytes = (unsigned char *)&(glo->targ->ramstock[0].w32[i]);
+				fmt = "%02X %02X %02X %02X";
+				snprintf( text, sizeof(text), fmt, bytes[0], bytes[1], bytes[2], bytes[3] );
+				}
+			else	snprintf( text, sizeof(text), "no data" );
+			break;
+		case 16 :
+			if	( i < glo->targ->ramstock[0].w32.size() )
+				{
+				unsigned short * shorts = (unsigned short *)&(glo->targ->ramstock[0].w32[i]);
+				fmt = "%04X %04X";
+				snprintf( text, sizeof(text), fmt, shorts[0], shorts[1] );
+				}
+			else	snprintf( text, sizeof(text), "no data" );
+			break;
+		case 32 :
+		default:
+			if	( i < glo->targ->ramstock[0].w32.size() )
+				{
+				fmt = "%08X";
+				snprintf( text, sizeof(text), fmt, glo->targ->ramstock[0].w32[i] );
+				}
+			else	snprintf( text, sizeof(text), "no data" );
+			break;
+		}
 	g_object_set( rendy, "text", text, NULL );
 	}
 }
@@ -739,13 +803,17 @@ int main( int argc, char *argv[] )
 glo->dad = &ledad;
 glo->mipa = &lemipa;
 glo->targ = &latarget;
-glo->timor = 0;
 glo->ilist = 0;
 
 // option de CLI
 glo->option_child_console = 1;
 glo->option_flavor = 0;
 glo->targ->option_binvis = 0;
+#ifdef PRINT_64
+glo->targ->regs.option_qregs = 18;
+#else
+glo->targ->regs.option_qregs = 10;
+#endif
 glo->option_ramblock = 128;
 glo->option_toggles = 1;
 

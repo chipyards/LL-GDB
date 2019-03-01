@@ -12,6 +12,7 @@ explicit registro( string nam ) : val( 0 ), changed( 0 ) { name = nam; };
 class regbank {		// the register bank
 public:
 vector <registro> regs;
+unsigned int option_qregs;
 unsigned int isp;
 unsigned int ibp;
 unsigned int iip;
@@ -20,7 +21,7 @@ regbank() : isp(0), ibp(0), iip(0) { regs.push_back( registro( string( "invalid"
 // methodes
 void start_reg_names() { regs.clear(); };
 void add_reg_name( string val ) {
-	if	( regs.size() < 18 )
+	if	( regs.size() < option_qregs )
 		{
 		if	( ( val == string("esp") ) || ( val == string("rsp") ) )
 			isp = regs.size();
