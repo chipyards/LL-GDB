@@ -1,5 +1,10 @@
-#define IP_COLOR  "#FFEE55"
-#define IP_COLOR2 "#DDBB00"
+#define CHREG_COLOR "#90E0FF"	// fond registre change
+#define IP_COLOR  "#FFEE55"	// fond nom rip
+#define IP_COLOR2 "#DDBB00"	// triangle
+#define SP_COLOR  "#FFB0B0"	// fond nom rsp
+#define SP_COLOR2 "#E00000"	// text adr == rsp
+#define BP_COLOR  "#B0FFB0"	// fond nom rbp
+#define BP_COLOR2 "#00C000"	// text adr == rbp
 
 #define UTF8_TRIANGLE	"\xe2\x96\xba"
 #define UTF8_CIRCLE	"\xe2\x97\x8f"
@@ -32,6 +37,10 @@ typedef unsigned int opt_type;
 #define MARGIN_NONE "  "
 #define MARGIN_BK "<span foreground=\"#FF0000\">" UTF8_CIRCLE "</span> "
 #define MARGIN_BKIP "<span foreground=\"#FF0000\">" UTF8_CIRCLE "</span><span foreground=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
+// pango markup pour la marge de memory
+#define MARGIN_SP "<span foreground=\"" SP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
+#define MARGIN_BP "<span foreground=\"" BP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
+#define MARGIN_NOSP " "
 
 typedef struct
 {

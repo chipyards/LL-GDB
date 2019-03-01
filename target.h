@@ -20,13 +20,16 @@ regbank() : isp(0), ibp(0), iip(0) { regs.push_back( registro( string( "invalid"
 // methodes
 void start_reg_names() { regs.clear(); };
 void add_reg_name( string val ) {
-	if	( ( val == string("esp") ) || val == string("rsp") )
-		isp = regs.size();
-	else if	( ( val == string("ebp") ) || val == string("rbp") )
-		ibp = regs.size();
-	else if	( ( val == string("eip") ) || val == string("rip") )
-		iip = regs.size();
-	regs.push_back( registro( val ) );
+	if	( regs.size() < 18 )
+		{
+		if	( ( val == string("esp") ) || ( val == string("rsp") ) )
+			isp = regs.size();
+		else if	( ( val == string("ebp") ) || ( val == string("rbp") ) )
+			ibp = regs.size();
+		else if	( ( val == string("eip") ) || ( val == string("rip") ) )
+			iip = regs.size();
+		regs.push_back( registro( val ) );
+		}
 	};
 void set_reg( unsigned int pos, unsigned long long newval ) {
 	if	( pos < regs.size() )
@@ -165,6 +168,12 @@ int add_listing( unsigned long long adr );
 void dump_listing( unsigned int i );
 unsigned long long get_ip() {
 	return regs.get_rip()->val;
+	}
+unsigned long long get_sp() {
+	return regs.get_rsp()->val;
+	}
+unsigned long long get_bp() {
+	return regs.get_rbp()->val;
 	}
 int is_break( unsigned long long adr ) {
 	return breakpoints.count( adr );

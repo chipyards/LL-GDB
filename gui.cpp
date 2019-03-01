@@ -68,6 +68,7 @@ glo->t.printf("RAM data %u words @ 0x%08X\n", (unsigned int)glo->targ->ramstock[
 glo->t.printf("%d RAM model rows\n", list_store_cnt( glo->tmodm ) );
 glo->t.printf("job_status=%010llX\n", glo->targ->job_status );
 glo->targ->job_dump();
+glo->t.printf("iip=%d, isp=%d, ibp=%d\n", glo->targ->regs.iip, glo->targ->regs.isp, glo->targ->regs.ibp );
 }
 
 
@@ -568,7 +569,9 @@ if	( i < glo->targ->regs.regs.size() )
 else	text = "?";
 g_object_set( rendy, "text", text, NULL );
 if	( i == glo->targ->regs.iip ) bgcolor = IP_COLOR;
-else	bgcolor = "#DDDDDD";
+else if	( i == glo->targ->regs.isp ) bgcolor = SP_COLOR;
+else if	( i == glo->targ->regs.ibp ) bgcolor = BP_COLOR;
+else	bgcolor = "#E4E4E4";
 g_object_set( rendy, "cell-background", bgcolor, "cell-background-set", TRUE, NULL );
 }
 
@@ -590,7 +593,7 @@ if	( i < glo->targ->regs.regs.size() )
 	chng = glo->targ->regs.regs[i].changed;
 	#ifdef MARKUP_REG
 	fmt = "<span background=\"%s\">" OPT_FMT "</span>";
-	snprintf( text, sizeof(text), fmt, chng?"#88DDFF":"#FFFFFF", (opt_type)glo->targ->regs.regs[i].val );
+	snprintf( text, sizeof(text), fmt, chng?CHREG_COLOR:"#FFFFFF", (opt_type)glo->targ->regs.regs[i].val );
 	#else
 	fmt = OPT_FMT;
 	snprintf( text, sizeof(text), fmt, (unsigned int)glo->targ->regs.regs[i].val );
@@ -602,7 +605,7 @@ g_object_set( rendy, "markup", text, NULL );
 #else
 g_object_set( rendy, "text", text, NULL );
 // la couleur ne revient pas toute seule au defaut (blanc)
-g_object_set( rendy, "cell-background", chng?"#88DDFF":"#FFFFFF", "cell-background-set", TRUE, NULL );
+g_object_set( rendy, "cell-background", chng?CHREG_COLOR:"#FFFFFF", "cell-background-set", TRUE, NULL );
 #endif
 }
 
@@ -620,9 +623,13 @@ if	( tree_column == glo->madrcol )
 	{
 	unsigned long long adr = glo->targ->ramstock[0].adr0;
 	adr += i * 4;
-	fmt = OPT_FMT;
+	if	( adr == glo->targ->get_sp() )
+		fmt = MARGIN_SP OPT_FMT;
+	else if	( adr == glo->targ->get_bp() )
+		fmt = MARGIN_BP OPT_FMT;
+	else	fmt = MARGIN_NOSP OPT_FMT;
 	snprintf( text, sizeof(text), fmt, (opt_type)adr );
-	g_object_set( rendy, "text", text, NULL );
+	g_object_set( rendy, "markup", text, NULL );
 	}
 else if	( tree_column == glo->mdatcol )
 	{
