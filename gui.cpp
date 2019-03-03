@@ -52,6 +52,7 @@ else			return -depth;
 /** ============================ action functions ======================= */
 
 void refresh( glostru * glo );
+void init_step( glostru * glo );
 
 void some_stats( glostru * glo )
 {
@@ -196,7 +197,8 @@ gtk_widget_queue_draw( glo->tlisr );
 unsigned int s = glo->targ->ramstock[0].w32.size();	// hum ce n'est pas l'endroit ou faire ça
 if	( s > 0 )
 	list_store_resize( glo->tmodm, ((glo->ram_format==64)?(s/2):(s)) );
-gtk_widget_queue_draw( glo->tlism );
+gtk_widget_queue_draw( glo->scwl );
+gtk_widget_queue_draw( glo->wmain );
 }
 
 // cette fonction pretend assurer les etapes de demarrage
@@ -535,6 +537,7 @@ if	( ref < 0 )
 	unsigned int ifil = listing::decode_file_index(ref);
 	if	( tree_column == glo->adrcol )
 		{
+		// snprintf( text, sizeof(text), "  %4d    ", ilin );
 		snprintf( text, sizeof(text), "  %d", ilin );
 		g_object_set( rendy, "text", text, NULL );
 		}

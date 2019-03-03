@@ -52,8 +52,8 @@ GtkWidget *       notl;			// left notebook
 GtkWidget *         scwr;		// scrollable window for regs
 GtkListStore *        tmodr;		// list model
 GtkWidget *           tlisr;		// tree view used as list view
-GtkWidget *         scw2;		// scrollable window for stack
-GtkWidget *       notr;			// right notebook
+GtkWidget *         scw2;		// scrollable window for flags
+GtkWidget *       hpan2;		// second horizontal paned pair
 
 GtkWidget *         scwl;		// scrollable window for disassembly
 GtkListStore *        tmodl;		// list model
