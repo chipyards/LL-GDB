@@ -361,7 +361,7 @@ curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Registers") );
 #ifdef PRINT_64
-gtk_widget_set_size_request (curwidg, 160, 450);
+gtk_widget_set_size_request (curwidg, 150, 450);
 #else
 gtk_widget_set_size_request (curwidg, 110, 260);
 #endif
@@ -381,7 +381,7 @@ glo->scw2 = curwidg;
 // seconde paire : disassembly + RAM
 // disassembly
 curwidg = gtk_scrolled_window_new( NULL, NULL );
-gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
+gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS );
 gtk_paned_pack1 (GTK_PANED (glo->hpan2), curwidg, TRUE, FALSE );
 glo->scwl = curwidg;
 
@@ -393,7 +393,11 @@ glo->tlisl = curwidg;
 // RAM
 curwidg = gtk_vbox_new( FALSE, 2 );
 gtk_paned_pack2 (GTK_PANED (glo->hpan2), curwidg, FALSE, FALSE );
+#ifdef PRINT_64
+gtk_widget_set_size_request (curwidg, 238, 100);
+#else
 gtk_widget_set_size_request (curwidg, 168, 100);
+#endif
 glo->vram = curwidg;
 
 curwidg = gtk_entry_new();
@@ -405,7 +409,7 @@ gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, FALSE, FALSE, 0 );
 glo->eram = curwidg;
 
 curwidg = gtk_scrolled_window_new( NULL, NULL );
-gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
+gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS );
 gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, TRUE, TRUE, 0 );
 glo->scwm = curwidg;
 
@@ -448,13 +452,13 @@ gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( curwidg ), FALSE );
 glo->btog2 = curwidg;
 
 // check bouton
-curwidg = gtk_check_button_new_with_label ("raw opt");
+curwidg = gtk_check_button_new_with_label ("stream dump");
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( curwidg ), FALSE );
 glo->btog3 = curwidg;
 
 // check bouton
-curwidg = gtk_check_button_new_with_label ("idle pause");
+curwidg = gtk_check_button_new_with_label ("raw dump");
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( curwidg ), FALSE );
 glo->btog4 = curwidg;

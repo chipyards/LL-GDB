@@ -102,8 +102,8 @@ int option_child_console;	// pour debug d'un prog qui utilise stdout et/ou stdin
 int option_flavor;		// 0 = AT&T, 1 = Intel
 // int option_binvis;		// (cette option est dans la classe target)
 unsigned int option_ramblock;	// number of bytes for RAM read
-int option_toggles;		// etat initial des check_buttons
-unsigned int exp_N;		// entier generique pour experiences
+unsigned int option_disablock;	// number of bytes for disassembly
+int option_toggles;		// etat initial des check_buttons (1bit per toggle button)
 
 } glostru;
 

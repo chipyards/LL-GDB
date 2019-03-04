@@ -21,16 +21,28 @@ va_start( argptr, fmt );
 vsnprintf( lbuf, sizeof(lbuf), fmt, argptr );
 va_end( argptr );
 // traitement caractere par caractere : filtrage sur place
+// enlever UTF8 invalide
 char c; unsigned int i = 0, j = 0;
 filu.errcnt = 0;
-while( ( c = lbuf[i++] ) != 0 )
-   {
-   filu.putc( c );
-   while ( filu.avail() )
-	 { lbuf[j++] = filu.getc(); }
-   if ( j >= sizeof(lbuf) )
-      { j = sizeof(lbuf) - 1; break; }
-   }
+while	( ( c = lbuf[i++] ) != 0 )
+	{
+	filu.putc( c );
+	while	( filu.avail() )
+		{ lbuf[j++] = filu.getc(); }
+	if	( j >= sizeof(lbuf) )
+		{ j = sizeof(lbuf) - 1; break; }
+	}
+lbuf[j] = 0;
+// enlever caracteres de controle
+i = 0; j = 0;
+while	( ( c = lbuf[i++] ) != 0 )
+	{
+	if	( ( c < ' ' ) && ( c != '\n' ) )
+		c = '?';
+	// if	( ( c == '<' ) || ( c == '>' ) )
+	//	c = '|';
+	lbuf[j++] = c;
+	}
 lbuf[j] = 0;
 /* un luxe superflu *
 if ( filu.errcnt )

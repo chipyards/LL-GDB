@@ -183,7 +183,7 @@ else	{ // NON allons desassembler si possible
 		{
 		char tbuf[128];	// this fmt var below is to avoid bogus MinGW warnings about %llX
 		const char * fmt = "-data-disassemble -s 0x" OPT_FMT " -e 0x" OPT_FMT " -- 5";
-		snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr, glo->exp_N + (opt_type)adr );
+		snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr, glo->option_disablock + (opt_type)adr );
 		queue_cmd( glo, tbuf, Disass );
 		}
 	}
@@ -231,18 +231,15 @@ int idle_call( glostru * glo )
 int retval;
 char tbuf[1024];
 int d;
-int tog1 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog1) );
-int tog2 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog2) );
-int tog3 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog3) );
-int tog4 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog4) );
-
-if	( tog4 )
-	return -1;	// i.e. meme le timer est en pause
+// int tog1 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog1) );	// cmd dump
+int tog2 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog2) );	// MI dump
+int tog3 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog3) );	// streams dump
+int tog4 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog4) );	// raw dump
 
 // la boucle de lecture de la pipe de sortie de GDB
 while	( ( d = glo->dad->child_getc() ) >= 0 )
 	{
-	if	( ( tog2 ) && ( tog3 ) )
+	if	( tog4 )
 		glo->t.printf("%c", d );
 	retval = glo->mipa->proc1char( d );
 	if	( retval == 0 )				// 0 = un char banal, on continue
@@ -254,20 +251,8 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 		}
 	else	{					// >0 = fin de quelque chose, a extraire seulement si necessaire
 		glo->mipa->extract( retval, glo->targ );
-		if	( retval == 9 )
-			{					// 9 = fin de stream-output
-			if	( tog1 )
-				{	// dump du prompt ou stream
-				if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
-					glo->t.printf("%s\n", tbuf );
-				}
-			if	( glo->mipa->nam.c_str()[0] == '(' )		// prompt de GDB
-				{
-				refresh( glo );
-				}
-			}
 		if	(
-			( ( tog2 ) && ( !tog3 ) ) &&
+			( ( tog2 ) && ( !tog4 ) ) &&
 			( ( retval >= 1 ) && ( retval <= 8 ) )
 			)
 			{	// dump du MI indente
@@ -276,7 +261,25 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 				glo->t.printf("%s\n", tbuf );
 				}
 			}
-		if	( ( !tog2 ) && ( !tog3 ) && ( retval == 8 ) )
+		else if	( retval == 9 )			// 9 = fin de stream-output
+			{
+			if	( glo->mipa->nam.c_str()[0] == '(' )		// prompt de GDB
+				{
+				refresh( glo );
+				}
+			if	( ( tog3 ) && ( !tog4 ) )
+				{						// dump du prompt ou stream
+				if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
+					{
+					tbuf[sizeof(tbuf)-1] = 0;	// si jamais il manque le terminateur
+					int pos = (int)strlen(tbuf) - 1;
+					while	( ( pos >= 0 ) && ( tbuf[pos] <= ' ' ) )
+						tbuf[pos--] = 0;	// on enleve line end et trailing blank
+					glo->t.printf("%s\n", tbuf );
+					}
+				}
+			}
+		else if	( ( retval == 8 ) && ( !tog2 ) && ( !tog3 ) && ( !tog4 ) )
 			{
 			// PROVISOAR : *stopped devrait etre interprete par mi_parse et reporte dans targ->job_status
 			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
@@ -537,8 +540,7 @@ if	( ref < 0 )
 	unsigned int ifil = listing::decode_file_index(ref);
 	if	( tree_column == glo->adrcol )
 		{
-		// snprintf( text, sizeof(text), "  %4d    ", ilin );
-		snprintf( text, sizeof(text), "  %d", ilin );
+		snprintf( text, sizeof(text), "  %4d", ilin );
 		g_object_set( rendy, "text", text, NULL );
 		}
 	else if	( tree_column == glo->asmcol )
@@ -808,6 +810,8 @@ glo->mipa = &lemipa;
 glo->targ = &latarget;
 glo->ilist = 0;
 
+setlocale( LC_ALL, "C" );	// question de survie
+
 // option de CLI
 glo->option_child_console = 1;
 glo->option_flavor = 0;
@@ -818,19 +822,23 @@ glo->targ->regs.option_qregs = 18;
 glo->targ->regs.option_qregs = 10;
 #endif
 glo->option_ramblock = 128;
+glo->option_disablock = 256;
 glo->option_toggles = 1;
 
-glo->exp_N = 256;
-if	( argc > 2 )
+for	( int iopt = 1; iopt < argc; ++iopt )
 	{
-	if	( argv[2][0] == '-' )
-		glo->option_child_console = 0;
-	else	glo->exp_N = atoi( argv[2] );
+	if	( argv[iopt][0] == '-' )
+		{
+		switch	( argv[iopt][1] )
+			{
+			case 't' : glo->option_toggles = atoi( argv[iopt]+2 );
+				break;
+			case 'c' : glo->option_child_console = atoi( argv[iopt]+2 );
+				break;
+			}
+		}
+	else	glo->targ->main_file_name = string( argv[iopt] );
 	}
-if	( glo->exp_N == 0 )
-	glo->exp_N = 16;
-
-setlocale( LC_ALL, "C" );	// question de survie
 
 gtk_init(&argc,&argv);
 
@@ -849,17 +857,12 @@ if	( glo->option_toggles & 8 )
 
 gtk_timeout_add( 31, (GtkFunction)(idle_call), (gpointer)glo );
 
-if	( argc > 1 )
-	{
-	char tbuf[128]; int retval;
-	snprintf( tbuf, sizeof(tbuf), "gdb --interpreter=mi %s", argv[1] );
-
-	retval = glo->dad->start_child( tbuf );
-	if	( retval )
-		glo->t.printf("Error daddy %d\n", retval );
-	else	init_step( glo );
-	}
-else	glo->t.printf("need an executable file name");
+char tbuf[128]; int retval;
+snprintf( tbuf, sizeof(tbuf), "gdb --interpreter=mi %s", glo->targ->main_file_name.c_str() );
+retval = glo->dad->start_child( tbuf );
+if	( retval )
+	glo->t.printf("Error daddy %d\n", retval );
+else	init_step( glo );
 
 // modpop( "test", "before gtk_main", GTK_WINDOW(glo->wmain) );
 
