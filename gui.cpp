@@ -213,6 +213,44 @@ queue_cmd( glo, "-data-list-register-values x", RegVal );
 glo->targ->job_dump();
 }
 
+// dump the disassembly listing to the editor
+void disa_editor_dump( glostru * glo, listing * list )
+{
+GtkTextIter iter;
+unsigned int i;
+int ref;
+char text[128]; const char * fmt;
+gtk_text_buffer_set_text ( glo->bedi, "", -1 );		// effacer tout
+gtk_text_buffer_get_end_iter( glo->bedi, &iter );
+for	( i = 0; i < list->lines.size(); ++i )
+	{
+	ref = list->lines[i];
+	if	( ref < 0 )
+		{		// ligne de code source
+		unsigned int ilin = listing::decode_line_number(ref);
+		unsigned int ifil = listing::decode_file_index(ref);
+		#ifdef	PRINT_64
+		fmt = "%4d             ";
+		#else
+		fmt = "%4d     ";
+		#endif
+		snprintf( text, sizeof(text), fmt, ilin );
+		gtk_text_buffer_insert( glo->bedi, &iter, text, -1 );	// line number
+		gtk_text_buffer_insert( glo->bedi, &iter, glo->targ->get_src_line( ifil, ilin ), -1 );	// src
+		gtk_text_buffer_insert( glo->bedi, &iter, "\n", -1 );
+		}
+	else	{		// ligne asm
+		asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
+		unsigned long long adr = daline->adr;
+		fmt = OPT_FMT " ";
+		snprintf( text, sizeof(text), fmt, (opt_type)adr );
+		gtk_text_buffer_insert( glo->bedi, &iter, text, -1 );	// address
+		gtk_text_buffer_insert( glo->bedi, &iter, daline->asmsrc.c_str(), -1 );	// asm
+		gtk_text_buffer_insert( glo->bedi, &iter, "\n", -1 );
+		}
+	}
+}
+
 /** ============================ widget call backs ======================= */
 
 void cmd_call( GtkWidget *widget, glostru * glo )
@@ -429,6 +467,15 @@ else	{
 	}
 glo->targ->asm_init();	// effacer tout le disassembly
 update_disass( glo );
+}
+
+void disa_call_editor( GtkWidget *widget, glostru * glo )
+{
+if	( glo->wedi == NULL )
+	mk_editor( glo );
+else	gtk_window_present( GTK_WINDOW( glo->wedi ) );
+if	( glo->ilist < glo->targ->liststock.size() )
+	disa_editor_dump( glo, &(glo->targ->liststock[glo->ilist]) );
 }
 
 // une call back pour le right-clic --> context menu

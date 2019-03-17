@@ -78,6 +78,7 @@ GtkWidget *                 itram64;
 GtkTreeViewColumn *       madrcol;	// ram adr column
 GtkTreeViewColumn *       mdatcol;	// ram data column
 
+transzcript t;
 GtkWidget *     wtran;			// transcript window
 GtkWidget *   mbar;			// horizontal menu
 GtkWidget *   hbut;			// horizontal box
@@ -88,7 +89,14 @@ GtkWidget *     btog3;			// button
 GtkWidget *     btog4;			// button
 GtkWidget *     bqui;			// button
 
-transzcript t;
+// fenetre annexe pour editeur
+GtkWidget * wedi;			// main window
+GtkWidget * vedi;			// vertical box
+GtkWidget *   sedi;			// scrollable window for text
+GtkWidget *     tedi;			// text window
+GtkTextBuffer *   bedi;			// text buffer
+
+
 
 daddy * dad;
 mi_parse * mipa;
@@ -121,6 +129,8 @@ GtkWidget * mk_ram_view( glostru * glo );
 GtkWidget * mk_bars( glostru * glo );
 // make the GUI
 void mk_the_gui( glostru * glo );
+// make the external editor window
+void mk_editor( glostru * glo );
 
 /** widget callbacks ------------------------------*/
 
@@ -128,6 +138,7 @@ void disa_call_bk( GtkWidget *widget, glostru * glo );
 void disa_call_bk_all( GtkWidget *widget, glostru * glo );
 void disa_call_flavor( GtkWidget *widget, glostru * glo );
 void disa_call_binvis( GtkWidget *widget, glostru * glo );
+void disa_call_editor( GtkWidget *widget, glostru * glo );
 gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void ram_call_fmt( GtkWidget *widget, glostru * glo );
 gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
