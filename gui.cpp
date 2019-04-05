@@ -355,7 +355,7 @@ if	( adr > 0 )			// un peu foolproof mais pas trop
 void disa_call_bk( GtkWidget *widget, glostru * glo )
 {
 char tbuf[128];
-unsigned long long adr = glo->bkadr;
+unsigned long long adr = glo->disa_sel_adr; // glo->disa_sel_adr a ete deja mis a jour par disa_right_call()
 if	( adr )
 	{
 	if	( glo->targ->is_break( adr ) )
@@ -417,7 +417,36 @@ if	( glo->ilist < glo->targ->liststock.size() )
 	disa_editor_dump( glo, &(glo->targ->liststock[glo->ilist]) );
 }
 
+void disa_call_copy_adr( GtkWidget *widget, glostru * glo )
+{
+char tbuf[64];
+if	( glo->disa_sel_ref >= 0 )
+	snprintf( tbuf, sizeof(tbuf), OPT_FMT, (opt_type)glo->disa_sel_adr );
+else	tbuf[0] =0;
+GtkClipboard * myclip;
+myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+gtk_clipboard_set_text( myclip, tbuf, -1);
+}
+
+void disa_call_copy_code( GtkWidget *widget, glostru * glo )
+{
+int ref = glo->disa_sel_ref;
+GtkClipboard * myclip;
+myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+if	( ref < 0 )
+	{		// ligne de code source
+	unsigned int ilin = listing::decode_line_number(ref);
+	unsigned int ifil = listing::decode_file_index(ref);
+	gtk_clipboard_set_text( myclip, glo->targ->get_src_line( ifil, ilin ), -1);
+	}
+else	{		// ligne asm
+	asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
+	gtk_clipboard_set_text( myclip, daline->asmsrc.c_str(), -1);
+	}
+}
+
 // une call back pour le right-clic --> context menu
+// le menu est deja cree (par mk_disa_menu), cette fonction le poppe apres avoir customise certains labels
 gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo )
 {
 /* single click with the right mouse button? */
@@ -441,16 +470,17 @@ if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
 		if	( *indices < list->lines.size() )
 			ref = list->lines[*indices];
 		else	ref = 0;
+		glo->disa_sel_ref = ref;
 		// decoder
 		if	( ref < 0 )
 			{		// ligne de code source
-			glo->bkadr = 0;
-			glo->t.printf( "src line %u\n", listing::decode_line_number(ref) );
+			glo->disa_sel_adr = 0;
+			// glo->t.printf( "src line %u\n", listing::decode_line_number(ref) );
 			gtk_menu_item_set_label( (GtkMenuItem *)glo->itbk, "-");
 			}
 		else	{		// ligne asm
 			unsigned long long adr = glo->targ->asmstock[(unsigned int)ref].adr;
-			glo->bkadr = adr;
+			glo->disa_sel_adr = adr;
 			// on copie l'adresse en ascii dans le label de l'item !
 			char tbuf[128]; const char * fmt;
 			if	( glo->targ->is_break( adr ) )

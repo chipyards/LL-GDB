@@ -60,7 +60,8 @@ GtkListStore *        tmodl;		// list model
 GtkWidget *           tlisl;		// tree view used as list view
 GtkWidget *             mdisa;		// context menu
 GtkWidget *               itbk;		// menu item for breakpoint
-unsigned long long	bkadr;		// addr for breakpoint
+int			disa_sel_ref;	// ref de la ligne de disas courante
+unsigned long long	disa_sel_adr;	// addr de la ligne de disas courante
 GtkTreeViewColumn *     adrcol;		// assembly adr column
 GtkTreeViewColumn *     bincol;		// assembly bin column
 GtkTreeViewColumn *     asmcol;		// assembly src column
@@ -147,6 +148,8 @@ void disa_call_bk_all( GtkWidget *widget, glostru * glo );
 void disa_call_flavor( GtkWidget *widget, glostru * glo );
 void disa_call_binvis( GtkWidget *widget, glostru * glo );
 void disa_call_editor( GtkWidget *widget, glostru * glo );
+void disa_call_copy_adr( GtkWidget *widget, glostru * glo );
+void disa_call_copy_code( GtkWidget *widget, glostru * glo );
 gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void ram_call_fmt( GtkWidget *widget, glostru * glo );
 gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );

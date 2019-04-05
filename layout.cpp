@@ -29,10 +29,8 @@ GtkWidget * mk_disa_menu( glostru * glo )
 GtkWidget * curmenu;
 GtkWidget * curitem;
 
-
 curmenu = gtk_menu_new ();    // Don't need to show menus, use gtk_menu_popup
 // gtk_menu_popup( (GtkMenu *)menu1_x, NULL, NULL, NULL, NULL, event->button, event->time );
-
 
 curitem = gtk_menu_item_new_with_label("Breakpoint");
 g_signal_connect( G_OBJECT( curitem ), "activate",
@@ -66,6 +64,18 @@ gtk_widget_show ( curitem );
 curitem = gtk_menu_item_new_with_label("Open in text editor");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( disa_call_editor ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("Copy Addr");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( disa_call_copy_adr ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("Copy Code");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( disa_call_copy_code ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
