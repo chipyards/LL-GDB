@@ -88,6 +88,7 @@ GtkWidget *     btog2;			// button
 GtkWidget *     btog3;			// button
 GtkWidget *     btog4;			// button
 GtkWidget *     bqui;			// button
+int         idle_id;			// id pour la fonction idle du timeout
 
 // fenetre annexe pour editeur
 GtkWidget * wedi;			// main window

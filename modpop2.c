@@ -152,7 +152,7 @@ return(resu);
 
 extern GtkWindow * global_main_window;
 
-void gasp( const char *fmt, ... )  /* fatal error handling */
+void gasp( const char *fmt, ... )  // fatal error handling
 {
 char tbuf[1024];
 va_list  argptr;
@@ -165,3 +165,4 @@ modpop( "fatale erreur", tbuf, global_main_window );
 // ici gtk_widget_destroy() force la sortie de la boucle gtk_main() principale
 gtk_widget_destroy( (GtkWidget *)global_main_window );
 }
+

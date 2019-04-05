@@ -135,7 +135,7 @@ glo->targ->job_status &= (~RUNNING_MASK);	// PROVIZOAR
 
 void expb( glostru * glo )
 {
-some_stats( glo );
+some_stats( glo ); gasp("GAAAASp");
 }
 
 // fonction a appeler chaque fois que ip a change
@@ -379,6 +379,8 @@ switch	( aname[0] )
 			case 'a' : expa( glo ); break;
 			case 'b' : expb( glo ); break;
 			} break;
+	case 'q' :			// quit
+		gtk_main_quit();		break;
 	default :
 		glo->t.printf("action %s\n", aname );
 	}
@@ -759,6 +761,8 @@ else if	( tree_column == glo->mdatcol )
 /** ============================ menus std ======================= */
 
 // tableau d'actions initialise
+// N.B. on peut utiliser une simple lettre comme bindkey,
+// mais alors cette lettre ne peut plus etre utilisee pour remplir une entry!!!!
 static GtkActionEntry ui_entries[] = {
   // name,    stock id,  label
   { "FileMenu", NULL,	"_File" },
@@ -778,8 +782,8 @@ static GtkActionEntry ui_entries[] = {
   { "rcu",	 	NULL, "Run to Cursor",		"<alt>F5",	NULL, G_CALLBACK(action_call) },
   { "btog", 		NULL, "Toggle Breakpoint",	"F9",		NULL, G_CALLBACK(action_call) },
   { "bena",	 	NULL, "Enable/Disable Break",	"<control>F9",	NULL, G_CALLBACK(action_call) },
-  { "expa",	 	NULL, "Exp A",			"A",		NULL, G_CALLBACK(action_call) },
-  { "expb",	 	NULL, "Exp B",			"B",		NULL, G_CALLBACK(action_call) },
+  { "expa",	 	NULL, "Exp A",			"<control>A",	NULL, G_CALLBACK(action_call) },
+  { "expb",	 	NULL, "Exp B",			"<control>B",	NULL, G_CALLBACK(action_call) },
 };
 
 // menu descriptions
@@ -902,7 +906,9 @@ if	( glo->option_toggles & 4 )
 if	( glo->option_toggles & 8 )
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( glo->btog4 ), TRUE );
 
-gtk_timeout_add( 31, (GtkFunction)(idle_call), (gpointer)glo );
+// gtk_timeout_add( 31, (GtkFunction)(idle_call), (gpointer)glo );
+glo->idle_id = g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
+// cet id servira pour deconnecter l'idle_call : g_source_remove( glo->idle_id );
 
 char tbuf[128]; int retval;
 snprintf( tbuf, sizeof(tbuf), "gdb --interpreter=mi %s", glo->targ->main_file_name.c_str() );
@@ -913,7 +919,9 @@ else	init_step( glo );
 
 // modpop( "test", "before gtk_main", GTK_WINDOW(glo->wmain) );
 
-gtk_main();
-
+gtk_main(); // on va rester dans cette fonction jusqu'a ce qu'une callback appelle gtk_main_quit();
+g_source_remove( glo->idle_id );
+// gtk_widget_destroy( glo->wmain );
+printf("clean exit :-)\n");
 return 0;
 }

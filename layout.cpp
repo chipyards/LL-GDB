@@ -28,6 +28,7 @@ GtkWidget * mk_disa_menu( glostru * glo )
 GtkWidget * curmenu;
 GtkWidget * curitem;
 
+
 curmenu = gtk_menu_new ();    // Don't need to show menus, use gtk_menu_popup
 // gtk_menu_popup( (GtkMenu *)menu1_x, NULL, NULL, NULL, NULL, event->button, event->time );
 
@@ -320,8 +321,8 @@ curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );/* DIALOG est deprecated, POPUP 
 gtk_window_set_modal( GTK_WINDOW(curwidg), FALSE );
 // gtk_window_set_type_hint( GTK_WINDOW(curwidg), GDK_WINDOW_TYPE_HINT_DIALOG );
 
-gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
-                    GTK_SIGNAL_FUNC( editor_delete_call ), NULL );
+g_signal_connect( curwidg, "delete_event",
+                  G_CALLBACK( editor_delete_call ), NULL );
 
 gtk_window_set_title( GTK_WINDOW(curwidg), "Editor" );
 glo->wedi = curwidg;
@@ -364,12 +365,10 @@ gtk_widget_show_all( glo->wedi );
 gint close_event_call( GtkWidget *widget,
                         GdkEvent  *event,
                         gpointer   data )
-{ return(FALSE); }
+{ gtk_main_quit(); return TRUE; }
 
 void quit_call( GtkWidget *widget, glostru * glo )
-{
-gtk_widget_destroy( glo->wmain );
-}
+{ gtk_main_quit(); }
 
 void mk_the_gui( glostru * glo )
 {
@@ -378,12 +377,14 @@ GtkWidget *curwidg;
 // principale fenetre
 curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );
 
-gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
-                    GTK_SIGNAL_FUNC( close_event_call ), glo );
-gtk_signal_connect( GTK_OBJECT(curwidg), "destroy",
-                    GTK_SIGNAL_FUNC( gtk_main_quit ), NULL );
+// pour garder le controle de la situation (bouton X du bandeau de la fenetre)
+g_signal_connect( curwidg, "delete_event",
+		  G_CALLBACK( close_event_call ), glo );
+// juste pour le cas ou on aurait un gasp() qui destroy abruptment la fenetre principale
+g_signal_connect( curwidg, "destroy",
+		  G_CALLBACK( gtk_main_quit ), NULL );
 
-gtk_window_set_title( GTK_WINDOW(curwidg), "EasyGDB" );
+gtk_window_set_title( GTK_WINDOW(curwidg), "LL-GDB" );
 
 gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 2 );
 glo->wmain = curwidg;
@@ -464,8 +465,8 @@ gtk_widget_set_size_request (curwidg, 168, 100);
 glo->vram = curwidg;
 
 curwidg = gtk_entry_new();
-gtk_signal_connect( GTK_OBJECT( curwidg ), "activate",
-                    GTK_SIGNAL_FUNC( ram_adr_call ), (gpointer)glo );
+g_signal_connect( curwidg, "activate",
+                  G_CALLBACK( ram_adr_call ), (gpointer)glo );
 gtk_entry_set_editable( GTK_ENTRY(curwidg), TRUE );
 gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
 gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, FALSE, FALSE, 0 );
@@ -495,8 +496,8 @@ glo->hbut = curwidg;
 
 /* entree editable */
 curwidg = gtk_entry_new();
-gtk_signal_connect( GTK_OBJECT( curwidg ), "activate",
-                    GTK_SIGNAL_FUNC( cmd_call ), (gpointer)glo );
+g_signal_connect( curwidg, "activate",
+                  G_CALLBACK( cmd_call ), (gpointer)glo );
 gtk_entry_set_editable( GTK_ENTRY(curwidg), TRUE );
 gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0);
@@ -528,8 +529,8 @@ glo->btog4 = curwidg;
 
 /* simple bouton */
 curwidg = gtk_button_new_with_label (" Quit ");
-gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
-                    GTK_SIGNAL_FUNC( quit_call ), (gpointer)glo );
+g_signal_connect( curwidg, "clicked",
+                  G_CALLBACK( quit_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 glo->bqui = curwidg;
 
