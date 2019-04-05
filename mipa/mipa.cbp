@@ -52,6 +52,7 @@
 			<Add library="pango-1.0" />
 			<Add directory="F:/Appli/msys64/mingw32/lib" />
 		</Linker>
+		<Unit filename="../actions.cpp" />
 		<Unit filename="../futf8.cpp" />
 		<Unit filename="../futf8.h" />
 		<Unit filename="../gui.cpp" />

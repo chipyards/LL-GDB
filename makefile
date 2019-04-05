@@ -4,7 +4,7 @@ GTKBASE= F:/Appli/msys64/mingw32
 # listes
 
 C_SRC = modpop2.c
-CPP_SRC = target.cpp mi_parse.cpp spawn_w.cpp futf8.cpp transcript.cpp layout.cpp gui.cpp
+CPP_SRC = target.cpp mi_parse.cpp spawn_w.cpp futf8.cpp transcript.cpp actions.cpp layout.cpp gui.cpp
 EXE = gui.exe
 
 OBJS = $(C_SRC:.c=.o) $(CPP_SRC:.cpp=.o)
@@ -59,6 +59,6 @@ mi_parse.o : mi_parse.h target.h
 spawn_w.o : spawn_w.h
 futf8.o : futf8.h
 transcript.o : transcript.h futf8.h
-gui.o : gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h
 gui.o : gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h modpop2.h
+actions.o : gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h
 layout.o : gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h

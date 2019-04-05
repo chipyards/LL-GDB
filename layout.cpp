@@ -19,6 +19,7 @@ using namespace std;
 #include "mi_parse.h"
 
 #include "gui.h"
+#include "actions.h"
 
 /** ============================ make context menus ======================= */
 
@@ -394,8 +395,10 @@ curwidg = gtk_vbox_new( FALSE, 2 );
 gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
+// les actions (bindkeys)
+mk_actions( glo );
 // la barre de menu
-curwidg = mk_bars( glo );
+curwidg = mk_mbar( glo );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
 glo->mbar = curwidg;
 

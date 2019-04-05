@@ -116,6 +116,13 @@ int option_toggles;		// etat initial des check_buttons (1bit per toggle button)
 
 } glostru;
 
+/** fonctions d'action ---------------------------*/
+
+void queue_cmd( glostru * glo, const char * cmd, job_enum job );
+void expa( glostru * glo );
+void expb( glostru * glo );
+void expd( glostru * glo );
+
 /** fonctions de layout ---------------------------*/
 
 // create the disassembly view context menu
