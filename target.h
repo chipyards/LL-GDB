@@ -158,7 +158,7 @@ void asm_init() {
 	asmline badline;		// preparer une ligne pour affichage provisoire
 	asmstock.push_back( badline );
 	asmstock.back().init();		// adr = 0 !
-	asmstock.back().asmsrc = string("waiting for disassembly");
+	asmstock.back().asmsrc = string("disassembly not available");
 	asmmap[0] = 0;
 	liststock.clear();
 	listing badlist;		// avoir toujours au moins un listing, meme vide
@@ -167,6 +167,18 @@ void asm_init() {
 int fill_listing( unsigned int ilist, unsigned long long adr );
 int add_listing( unsigned long long adr );
 void dump_listing( unsigned int i );
+int get_disa_ref( unsigned int ilist, unsigned int i ) { // retourne la ref cherchee ou 0 si echec
+	listing * list;					 // (0 pointe sur ligne asm "disassembly not available")
+	// recuperer le listing selon ilist
+	if	( ilist < liststock.size() )
+		list = &(liststock[ilist]);
+	else	return 0;
+	// recuperer la ref selon i
+	if	( i < list->lines.size() )
+		return list->lines[i];
+	else	return 0;
+	}
+void ram_val2txt( char * text, unsigned int size, unsigned int iram, unsigned int iline, int ram_format );
 unsigned long long get_ip() {
 	return regs.get_rip()->val;
 	}

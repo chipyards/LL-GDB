@@ -52,6 +52,9 @@ GtkWidget *       notl;			// left notebook
 GtkWidget *         scwr;		// scrollable window for regs
 GtkListStore *        tmodr;		// list model
 GtkWidget *           tlisr;		// tree view used as list view
+GtkWidget *             mreg;		// context menu
+GtkWidget *               itrg;		// menu item for register
+unsigned int		reg_sel_i;	// index de la ligne courante
 GtkWidget *         scw2;		// scrollable window for flags
 GtkWidget *       hpan2;		// second horizontal paned pair
 
@@ -76,6 +79,8 @@ GtkWidget *                 itram8;	// menu item for format
 GtkWidget *                 itram16;
 GtkWidget *                 itram32;
 GtkWidget *                 itram64;
+GtkWidget *                 itram7;
+unsigned int		  ram_sel_i;	// index de la ligne courante
 GtkTreeViewColumn *       madrcol;	// ram adr column
 GtkTreeViewColumn *       mdatcol;	// ram data column
 
@@ -143,6 +148,8 @@ void mk_editor( glostru * glo );
 
 /** widget callbacks ------------------------------*/
 
+void reg_call_copy( GtkWidget *widget, glostru * glo );
+gboolean reg_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void disa_call_bk( GtkWidget *widget, glostru * glo );
 void disa_call_bk_all( GtkWidget *widget, glostru * glo );
 void disa_call_flavor( GtkWidget *widget, glostru * glo );
@@ -152,6 +159,7 @@ void disa_call_copy_adr( GtkWidget *widget, glostru * glo );
 void disa_call_copy_code( GtkWidget *widget, glostru * glo );
 gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void ram_call_fmt( GtkWidget *widget, glostru * glo );
+void ram_call_copy( GtkWidget *widget, glostru * glo );
 gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void ram_adr_call( GtkWidget *widget, glostru * glo );
 void cmd_call( GtkWidget *widget, glostru * glo );

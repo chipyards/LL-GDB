@@ -23,6 +23,25 @@ using namespace std;
 
 /** ============================ make context menus ======================= */
 
+// create the register view context menu
+GtkWidget * mk_reg_menu( glostru * glo )
+{
+GtkWidget * curmenu;
+GtkWidget * curitem;
+
+curmenu = gtk_menu_new ();    // Don't need to show menus, use gtk_menu_popup
+// gtk_menu_popup( (GtkMenu *)menu1_x, NULL, NULL, NULL, NULL, event->button, event->time );
+
+curitem = gtk_menu_item_new_with_label("Copy");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( reg_call_copy ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+glo->itrg = curitem;
+gtk_widget_show ( curitem );
+
+return curmenu;
+}
+
 // create the disassembly view context menu
 GtkWidget * mk_disa_menu( glostru * glo )
 {
@@ -119,15 +138,81 @@ glo->ram_format = 32;							// defaut
 gtk_widget_show ( curitem );
 
 curitem = gtk_radio_menu_item_new_with_label( group, "QWords (64-bit words)");
+group = gtk_radio_menu_item_get_group( GTK_RADIO_MENU_ITEM(curitem) );
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( ram_call_fmt ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 glo->itram64 = curitem;
 gtk_widget_show ( curitem );
 
+curitem = gtk_radio_menu_item_new_with_label( group, "ASCII");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( ram_call_fmt ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+glo->itram7 = curitem;
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("Copy Line");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( ram_call_copy ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
 return curmenu;
 }
 /** ============================ make the subwindows ======================= */
+
+// Create the register view
+GtkWidget * mk_reg_view( glostru * glo )
+{
+GtkWidget *curwidg;
+GtkCellRenderer *renderer;
+GtkTreeViewColumn *curcol;
+GtkTreeSelection* cursel;
+
+// le modele : minimal, 1 colonne de type int
+glo->tmodr = gtk_list_store_new( 1, G_TYPE_INT );
+list_store_resize( glo->tmodr, glo->targ->regs.option_qregs );
+
+// la vue
+curwidg = gtk_tree_view_new();
+
+// la colonne nom de registre, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, " Reg " );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)regname_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+
+// la colonne valeur, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, " Contents " );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)regval_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+
+// configurer la selection
+cursel = gtk_tree_view_get_selection( (GtkTreeView*)curwidg );
+gtk_tree_selection_set_mode( cursel, GTK_SELECTION_NONE );
+
+// connecter modele
+gtk_tree_view_set_model( (GtkTreeView*)curwidg, GTK_TREE_MODEL( glo->tmodr ) );
+
+// connecter callback pour right-clic (c'est la callback qui va identifier le right)
+g_signal_connect( curwidg, "button-press-event", (GCallback)reg_right_call, (gpointer)glo );
+
+return(curwidg);
+}
 
 // Create the disassembly view
 GtkWidget * mk_disa_view( glostru * glo )
@@ -201,55 +286,6 @@ pango_font_description_free( font_desc );
 
 // connecter callback pour right-clic (c'est la callback qui va identifier le right)
 g_signal_connect( curwidg, "button-press-event", (GCallback)disa_right_call, (gpointer)glo );
-
-return(curwidg);
-}
-
-// Create the register view
-GtkWidget * mk_reg_view( glostru * glo )
-{
-GtkWidget *curwidg;
-GtkCellRenderer *renderer;
-GtkTreeViewColumn *curcol;
-GtkTreeSelection* cursel;
-
-// le modele : minimal, 1 colonne de type int
-glo->tmodr = gtk_list_store_new( 1, G_TYPE_INT );
-list_store_resize( glo->tmodr, glo->targ->regs.option_qregs );
-
-// la vue
-curwidg = gtk_tree_view_new();
-
-// la colonne nom de registre, avec data_func
-renderer = gtk_cell_renderer_text_new();
-curcol = gtk_tree_view_column_new();
-
-gtk_tree_view_column_set_title( curcol, " Reg " );
-gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
-gtk_tree_view_column_set_cell_data_func( curcol, renderer,
-                                         (GtkTreeCellDataFunc)regname_data_call,
-                                         (gpointer)glo, NULL );
-gtk_tree_view_column_set_resizable( curcol, TRUE );
-gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
-
-// la colonne valeur, avec data_func
-renderer = gtk_cell_renderer_text_new();
-curcol = gtk_tree_view_column_new();
-
-gtk_tree_view_column_set_title( curcol, " Value " );
-gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
-gtk_tree_view_column_set_cell_data_func( curcol, renderer,
-                                         (GtkTreeCellDataFunc)regval_data_call,
-                                         (gpointer)glo, NULL );
-gtk_tree_view_column_set_resizable( curcol, TRUE );
-gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
-
-// configurer la selection
-cursel = gtk_tree_view_get_selection( (GtkTreeView*)curwidg );
-gtk_tree_selection_set_mode( cursel, GTK_SELECTION_NONE );
-
-// connecter modele
-gtk_tree_view_set_model( (GtkTreeView*)curwidg, GTK_TREE_MODEL( glo->tmodr ) );
 
 return(curwidg);
 }
@@ -445,6 +481,7 @@ gtk_widget_set_size_request (curwidg, 110, 260);
 
 glo->scwr = curwidg;
 
+glo->mreg = mk_reg_menu( glo );
 curwidg = mk_reg_view( glo );
 gtk_container_add( GTK_CONTAINER( glo->scwr ), curwidg );
 glo->tlisr = curwidg;

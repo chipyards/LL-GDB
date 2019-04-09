@@ -189,7 +189,7 @@ gtk_widget_queue_draw( glo->tlisl );
 gtk_widget_queue_draw( glo->tlisr );
 unsigned int s = glo->targ->ramstock[0].w32.size();	// hum ce n'est pas l'endroit ou faire ça
 if	( s > 0 )
-	list_store_resize( glo->tmodm, ((glo->ram_format==64)?(s/2):(s)) );
+	list_store_resize( glo->tmodm, (((glo->ram_format==64)||(glo->ram_format==7))?(s/2):(s)) );
 gtk_widget_queue_draw( glo->scwl );
 gtk_widget_queue_draw( glo->wmain );
 }
@@ -352,6 +352,44 @@ if	( adr > 0 )			// un peu foolproof mais pas trop
 
 /** ================= context menus call backs ======================= */
 
+void reg_call_copy( GtkWidget *widget, glostru * glo )
+{
+unsigned int i = glo->reg_sel_i; // glo->reg_sel_i a ete deja mis a jour par reg_right_call()
+char tbuf[64];
+if	(  i < glo->targ->regs.regs.size()  )
+	snprintf( tbuf, sizeof(tbuf), OPT_FMT, (opt_type)glo->targ->regs.regs[i].val );
+else	tbuf[0] =0;
+GtkClipboard * myclip;
+myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+gtk_clipboard_set_text( myclip, tbuf, -1);
+}
+
+// une call back pour le right-clic --> context menu
+// le menu est deja cree (par mk_reg_menu), cette fonction le poppe apres avoir customise certains labels
+gboolean reg_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo )
+{
+/* single click with the right mouse button? */
+if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
+	{	// tentative d'identifier la row :
+        GtkTreePath *path;
+        if	( gtk_tree_view_get_path_at_pos( GTK_TREE_VIEW(curwidg), event->x, event->y, &path, NULL, NULL, NULL) )
+		{	// on a un path, on en extrait un indice
+		unsigned int * indices; char text[32];
+		int depth;
+		indices = (unsigned int *)gtk_tree_path_get_indices_with_depth( path, &depth );
+		gtk_tree_path_free(path);
+		glo->reg_sel_i = *indices;
+		if	( *indices < glo->targ->regs.regs.size() )
+			snprintf( text, sizeof(text), "Copy %s", glo->targ->regs.regs[*indices].name.c_str() );
+		else	text[0] = 0;
+		gtk_menu_item_set_label( (GtkMenuItem *)glo->itrg, text );
+		}
+	gtk_menu_popup( (GtkMenu *)glo->mreg, NULL, NULL, NULL, NULL, event->button, event->time );
+	return TRUE;			/* we handled this */
+	}
+return FALSE;				/* we did not handle this */
+}
+
 void disa_call_bk( GtkWidget *widget, glostru * glo )
 {
 char tbuf[128];
@@ -451,25 +489,17 @@ gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * g
 {
 /* single click with the right mouse button? */
 if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
-	{
-	// glo->t.printf("right ");
-	// tentative d'identifier la row :
+	{ // tentative d'identifier la row :
         GtkTreePath *path;
         if	( gtk_tree_view_get_path_at_pos( GTK_TREE_VIEW(curwidg), event->x, event->y, &path, NULL, NULL, NULL) )
-		{
-		// on a un path, on en extrait un indice
+		{	// on a un path, on en extrait un indice
 		unsigned int * indices; int ref;
 		int depth;
 		indices = (unsigned int *)gtk_tree_path_get_indices_with_depth( path, &depth );
 		// ici on pourrait forcer la selection mais bof
 		gtk_tree_path_free(path);
-		// glo->t.printf( "d=%d, i=%d \n", depth, indices[0] );
-		// N.B. code ci-dessous a refactoriser vs disa_data_call()
 		// recuperer la reference codee de ligne dans l'objet target
-		listing * list = &(glo->targ->liststock[glo->ilist]);
-		if	( *indices < list->lines.size() )
-			ref = list->lines[*indices];
-		else	ref = 0;
+		ref = glo->targ->get_disa_ref( glo->ilist, *indices );
 		glo->disa_sel_ref = ref;
 		// decoder
 		if	( ref < 0 )
@@ -484,8 +514,8 @@ if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
 			// on copie l'adresse en ascii dans le label de l'item !
 			char tbuf[128]; const char * fmt;
 			if	( glo->targ->is_break( adr ) )
-				fmt = "kill breakpoint at 0x" OPT_FMT;
-			else	fmt = "set breakpoint at 0x" OPT_FMT;
+				fmt = "Kill breakpoint at 0x" OPT_FMT;
+			else	fmt = "Set breakpoint at 0x" OPT_FMT;
 			snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr );
 			gtk_menu_item_set_label( (GtkMenuItem *)glo->itbk, tbuf);
 			}
@@ -506,15 +536,74 @@ else if	( widget == glo->itram32 )
 	glo->ram_format = 32;
 else if	( widget == glo->itram64 )
 	glo->ram_format = 64;
+else if	( widget == glo->itram7 )
+	glo->ram_format = 7;
 refresh( glo );
 }
 
+void ram_call_copy( GtkWidget *widget, glostru * glo )
+{
+unsigned int i = glo->ram_sel_i; // glo->ram_sel_i a ete deja mis a jour par ram_right_call()
+char text[128]; const char * fmt;
+text[0] = 0;
+unsigned long long adr = glo->targ->ramstock[0].adr0;
+adr += i * ((glo->ram_format==64)?(8):(4));
+switch	( glo->ram_format )
+	{
+	case 64 :
+		if	( (1+(2*i)) < glo->targ->ramstock[0].w32.size() )
+			{
+			fmt = OPT_FMT " %08X%08X";
+			snprintf( text, sizeof(text), fmt, (opt_type)adr,
+				glo->targ->ramstock[0].w32[1+(2*i)], glo->targ->ramstock[0].w32[2*i]  );
+			}
+		break;
+	case 8 :
+		if	( i < glo->targ->ramstock[0].w32.size() )
+			{
+			unsigned char * bytes = (unsigned char *)&(glo->targ->ramstock[0].w32[i]);
+			fmt = OPT_FMT " %02X %02X %02X %02X";
+			snprintf( text, sizeof(text), fmt, (opt_type)adr, bytes[0], bytes[1], bytes[2], bytes[3] );
+			}
+		break;
+	case 16 :
+		if	( i < glo->targ->ramstock[0].w32.size() )
+			{
+			unsigned short * shorts = (unsigned short *)&(glo->targ->ramstock[0].w32[i]);
+			fmt = OPT_FMT " %04X %04X";
+			snprintf( text, sizeof(text), fmt, (opt_type)adr, shorts[0], shorts[1] );
+			}
+		break;
+	case 32 :
+	default:
+		if	( i < glo->targ->ramstock[0].w32.size() )
+			{
+			fmt = OPT_FMT " %08X";
+			snprintf( text, sizeof(text), fmt, (opt_type)adr, glo->targ->ramstock[0].w32[i] );
+			}
+		break;
+	}
+GtkClipboard * myclip;
+myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+gtk_clipboard_set_text( myclip, text, -1);
+}
+
 // une call back pour le right-clic --> context menu
+// le menu est deja cree (par mk_ram_menu), cette fonction le poppe apres avoir customise certains labels
 gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo )
 {
 /* single click with the right mouse button? */
 if	( ( event->type == GDK_BUTTON_PRESS ) && ( event->button == 3 ) )
-	{
+	{	// tentative d'identifier la row :
+        GtkTreePath *path;
+        if	( gtk_tree_view_get_path_at_pos( GTK_TREE_VIEW(curwidg), event->x, event->y, &path, NULL, NULL, NULL) )
+		{	// on a un path, on en extrait un indice
+		unsigned int * indices;
+		int depth;
+		indices = (unsigned int *)gtk_tree_path_get_indices_with_depth( path, &depth );
+		gtk_tree_path_free(path);
+		glo->ram_sel_i = *indices;
+		}
 	gtk_menu_popup( (GtkMenu *)glo->mram, NULL, NULL, NULL, NULL, event->button, event->time );
 	return TRUE;			/* we handled this */
 	}
@@ -522,84 +611,6 @@ return FALSE;				/* we did not handle this */
 }
 
 /** ================= Gtk Tree View call backs ======================= */
-
-// N.B.
-// on peut identifier la treeview avec gtk_tree_view_column_get_tree_view()
-// on peut identifier la colonne avec gtk_tree_view_column_get_title() si son nom est unique
-void disa_data_call( GtkTreeViewColumn * tree_column,
-                     GtkCellRenderer   * rendy,
-                     GtkTreeModel      * tree_model,
-                     GtkTreeIter       * iter,
-                     glostru *         glo )
-{
-listing * list;
-unsigned int i;
-int ref;
-char text[128];
-// recuperer le listing associe
-if	( glo->ilist < glo->targ->liststock.size() )
-	list = &(glo->targ->liststock[glo->ilist]);
-else	{
-	g_object_set( rendy, "text", "no data", NULL );
-	return;
-	}
-// recuperer notre index dans la colonne 0 du model
-gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
-// recuperer la reference codee de ligne dans l'objet target
-if	( i < list->lines.size() )
-	ref = list->lines[i];
-else	ref = 0;
-// decoder
-if	( ref < 0 )
-	{		// ligne de code source
-	unsigned int ilin = listing::decode_line_number(ref);
-	unsigned int ifil = listing::decode_file_index(ref);
-	if	( tree_column == glo->adrcol )
-		{
-		snprintf( text, sizeof(text), "  %4d", ilin );
-		g_object_set( rendy, "text", text, NULL );
-		}
-	else if	( tree_column == glo->asmcol )
-		{
-		g_object_set( rendy, "text", glo->targ->get_src_line( ifil, ilin ), NULL );
-		}
-	else if	( tree_column == glo->bincol )
-		{
-		g_object_set( rendy, "text", "", NULL );
-		}
-	}
-else	{		// ligne asm
-	asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
-	if	( tree_column == glo->adrcol )
-		{
-		unsigned long long adr = daline->adr;
-		const char * fmt;
-		if	( adr == glo->targ->get_ip() )
-			{
-			if	( glo->targ->is_break( adr ) )
-				fmt = MARGIN_BKIP OPT_FMT;
-			else	fmt = MARGIN_IP OPT_FMT;
-			}
-		else	{
-			if	( glo->targ->is_break( adr ) )
-				fmt = MARGIN_BK OPT_FMT;
-			else	fmt = MARGIN_NONE OPT_FMT;
-			}
-		snprintf( text, sizeof(text), fmt, (opt_type)adr );
-		g_object_set( rendy, "markup", text, NULL );
-		}
-	else if	( tree_column == glo->asmcol )
-		{
-		g_object_set( rendy, "text", daline->asmsrc.c_str(), NULL );
-		}
-	else if	( tree_column == glo->bincol )
-		{
-		for	( unsigned int ib = 0; ib < daline->qbytes; ++ib )
-			snprintf( text + (ib*3), sizeof(text) - (ib*3), "%02X ", daline->bytes[ib] );
-		g_object_set( rendy, "text", text, NULL );
-		}
-	}
-}
 
 void regname_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
@@ -658,6 +669,75 @@ g_object_set( rendy, "cell-background", chng?CHREG_COLOR:"#FFFFFF", "cell-backgr
 #endif
 }
 
+// Autre style : 1 seule callback pour toutes les colonnes
+// on peut identifier la treeview avec gtk_tree_view_column_get_tree_view()
+// on peut identifier la colonne avec gtk_tree_view_column_get_title() si son nom est unique (FBI)
+// ou juste avec tree_column si on l'a stocke, c'est plus correct
+void disa_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo )
+{
+unsigned int i;
+int ref;
+char text[128];
+// recuperer notre index dans la colonne 0 du model
+gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
+// recuperer la reference codee de ligne dans l'objet target
+ref = glo->targ->get_disa_ref( glo->ilist, i );
+// decoder
+if	( ref < 0 )
+	{		// ligne de code source
+	unsigned int ilin = listing::decode_line_number(ref);
+	unsigned int ifil = listing::decode_file_index(ref);
+	if	( tree_column == glo->adrcol )
+		{
+		snprintf( text, sizeof(text), "  %4d", ilin );
+		g_object_set( rendy, "text", text, NULL );
+		}
+	else if	( tree_column == glo->asmcol )
+		{
+		g_object_set( rendy, "text", glo->targ->get_src_line( ifil, ilin ), NULL );
+		}
+	else if	( tree_column == glo->bincol )
+		{
+		g_object_set( rendy, "text", "", NULL );
+		}
+	}
+else	{		// ligne asm
+	asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
+	if	( tree_column == glo->adrcol )
+		{
+		unsigned long long adr = daline->adr;
+		const char * fmt;
+		if	( adr == glo->targ->get_ip() )
+			{
+			if	( glo->targ->is_break( adr ) )
+				fmt = MARGIN_BKIP OPT_FMT;
+			else	fmt = MARGIN_IP OPT_FMT;
+			}
+		else	{
+			if	( glo->targ->is_break( adr ) )
+				fmt = MARGIN_BK OPT_FMT;
+			else	fmt = MARGIN_NONE OPT_FMT;
+			}
+		snprintf( text, sizeof(text), fmt, (opt_type)adr );
+		g_object_set( rendy, "markup", text, NULL );
+		}
+	else if	( tree_column == glo->asmcol )
+		{
+		g_object_set( rendy, "text", daline->asmsrc.c_str(), NULL );
+		}
+	else if	( tree_column == glo->bincol )
+		{
+		for	( unsigned int ib = 0; ib < daline->qbytes; ++ib )
+			snprintf( text + (ib*3), sizeof(text) - (ib*3), "%02X ", daline->bytes[ib] );
+		g_object_set( rendy, "text", text, NULL );
+		}
+	}
+}
+
 void ram_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,
@@ -671,7 +751,7 @@ gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
 if	( tree_column == glo->madrcol )
 	{
 	unsigned long long adr = glo->targ->ramstock[0].adr0;
-	adr += i * ((glo->ram_format==64)?(8):(4));
+	adr += i * (((glo->ram_format==64)||(glo->ram_format==7))?(8):(4));
 	if	( adr == glo->targ->get_sp() )
 		fmt = MARGIN_SP OPT_FMT;
 	else if	( adr == glo->targ->get_bp() )
@@ -682,45 +762,7 @@ if	( tree_column == glo->madrcol )
 	}
 else if	( tree_column == glo->mdatcol )
 	{
-	switch	( glo->ram_format )
-		{
-		case 64 :
-			if	( (1+(2*i)) < glo->targ->ramstock[0].w32.size() )
-				{
-				fmt = "%08X%08X";
-				snprintf( text, sizeof(text), fmt,
-					glo->targ->ramstock[0].w32[1+(2*i)], glo->targ->ramstock[0].w32[2*i]  );
-				}
-			else	snprintf( text, sizeof(text), "no data" );
-			break;
-		case 8 :
-			if	( i < glo->targ->ramstock[0].w32.size() )
-				{
-				unsigned char * bytes = (unsigned char *)&(glo->targ->ramstock[0].w32[i]);
-				fmt = "%02X %02X %02X %02X";
-				snprintf( text, sizeof(text), fmt, bytes[0], bytes[1], bytes[2], bytes[3] );
-				}
-			else	snprintf( text, sizeof(text), "no data" );
-			break;
-		case 16 :
-			if	( i < glo->targ->ramstock[0].w32.size() )
-				{
-				unsigned short * shorts = (unsigned short *)&(glo->targ->ramstock[0].w32[i]);
-				fmt = "%04X %04X";
-				snprintf( text, sizeof(text), fmt, shorts[0], shorts[1] );
-				}
-			else	snprintf( text, sizeof(text), "no data" );
-			break;
-		case 32 :
-		default:
-			if	( i < glo->targ->ramstock[0].w32.size() )
-				{
-				fmt = "%08X";
-				snprintf( text, sizeof(text), fmt, glo->targ->ramstock[0].w32[i] );
-				}
-			else	snprintf( text, sizeof(text), "no data" );
-			break;
-		}
+	glo->targ->ram_val2txt( text, sizeof(text), 0, i, glo->ram_format );
 	g_object_set( rendy, "text", text, NULL );
 	}
 }

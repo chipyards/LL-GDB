@@ -60,6 +60,72 @@ fill_listing( ilist, adr );
 return (int)ilist;
 }
 
+// formatte une valeur lue dans une RAM
+void target::ram_val2txt( char * text, unsigned int size, unsigned int iram, unsigned int iline, int ram_format ) {
+const char * fmt;
+if	( iram >= ramstock.size() )
+	{
+	snprintf( text, size, "no data" );
+	return;
+	}
+switch	( ram_format )
+	{
+	case 64 :
+		if	( (1+(2*iline)) < ramstock[iram].w32.size() )
+			{
+			fmt = "%08X%08X";
+			snprintf( text, size, fmt, ramstock[iram].w32[1+(2*iline)], ramstock[iram].w32[2*iline] );
+			}
+		else	snprintf( text, size, "no data" );
+		break;
+	case 7 :	// ascii 8 chars
+		if	( (1+(2*iline)) < ramstock[iram].w32.size() )
+			{
+			unsigned char * b; unsigned int i;
+			b = (unsigned char *)&(ramstock[iram].w32[2*iline]);
+			for	( i = 0; i < 8; ++i )
+				{
+				if	( ( b[i] < ' ' ) || ( b[i] > '~' ) )
+					b[i] = ' ';
+				if	( i < size )
+					text[i] = b[i];
+				}
+			if	( i < size )
+				text[i] = 0;
+			else	text[size-1] = 0;
+			}
+		else	snprintf( text, size, "no data" );
+		break;
+	case 8 :
+		if	( iline < ramstock[iram].w32.size() )
+			{
+			unsigned char * bytes = (unsigned char *)&(ramstock[iram].w32[iline]);
+			fmt = "%02X %02X %02X %02X";
+			snprintf( text, size, fmt, bytes[0], bytes[1], bytes[2], bytes[3] );
+			}
+		else	snprintf( text, size, "no data" );
+		break;
+	case 16 :
+		if	( iline < ramstock[iram].w32.size() )
+			{
+			unsigned short * shorts = (unsigned short *)&(ramstock[iram].w32[iline]);
+			fmt = "%04X %04X";
+			snprintf( text, size, fmt, shorts[0], shorts[1] );
+			}
+		else	snprintf( text, size, "no data" );
+		break;
+	case 32 :
+	default:
+		if	( iline < ramstock[iram].w32.size() )
+			{
+			fmt = "%08X";
+			snprintf( text, size, fmt, ramstock[iram].w32[iline] );
+			}
+		else	snprintf( text, size, "no data" );
+		break;
+	}
+}
+
 void target::dump_listing( unsigned int ilist )	// unsecure !!!
 {
 unsigned int i, ifil, ilin;
