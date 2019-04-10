@@ -189,7 +189,7 @@ gtk_widget_queue_draw( glo->tlisl );
 gtk_widget_queue_draw( glo->tlisr );
 unsigned int s = glo->targ->ramstock[0].w32.size();	// hum ce n'est pas l'endroit ou faire ça
 if	( s > 0 )
-	list_store_resize( glo->tmodm, (((glo->ram_format==64)||(glo->ram_format==7))?(s/2):(s)) );
+	list_store_resize( glo->tmodm, ((glo->ram_format>=64)?(s/2):(s)) );
 gtk_widget_queue_draw( glo->scwl );
 gtk_widget_queue_draw( glo->wmain );
 }
@@ -355,9 +355,9 @@ if	( adr > 0 )			// un peu foolproof mais pas trop
 void reg_call_copy( GtkWidget *widget, glostru * glo )
 {
 unsigned int i = glo->reg_sel_i; // glo->reg_sel_i a ete deja mis a jour par reg_right_call()
-char tbuf[64];
+char tbuf[64]; const char * fmt = OPT_FMT;
 if	(  i < glo->targ->regs.regs.size()  )
-	snprintf( tbuf, sizeof(tbuf), OPT_FMT, (opt_type)glo->targ->regs.regs[i].val );
+	snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)glo->targ->regs.regs[i].val );
 else	tbuf[0] =0;
 GtkClipboard * myclip;
 myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
@@ -442,8 +442,8 @@ if	( glo->targ->option_binvis )
 else	{
 	gtk_tree_view_column_set_visible( glo->bincol, FALSE );
 	}
-glo->targ->asm_init();	// effacer tout le disassembly
-update_disass( glo );
+glo->targ->asm_init();	// effacer tout le disassembly car mi_parse tient compte de option_binvis
+update_disass( glo );	// ce n'est pas seulement la visibilite des colonnes qui change
 }
 
 void disa_call_editor( GtkWidget *widget, glostru * glo )
@@ -457,9 +457,9 @@ if	( glo->ilist < glo->targ->liststock.size() )
 
 void disa_call_copy_adr( GtkWidget *widget, glostru * glo )
 {
-char tbuf[64];
+char tbuf[64]; const char * fmt = OPT_FMT;
 if	( glo->disa_sel_ref >= 0 )
-	snprintf( tbuf, sizeof(tbuf), OPT_FMT, (opt_type)glo->disa_sel_adr );
+	snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)glo->disa_sel_adr );
 else	tbuf[0] =0;
 GtkClipboard * myclip;
 myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
@@ -479,7 +479,16 @@ if	( ref < 0 )
 	}
 else	{		// ligne asm
 	asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
-	gtk_clipboard_set_text( myclip, daline->asmsrc.c_str(), -1);
+	if	( glo->targ->option_binvis )
+		{
+		char text[256];
+		int pos = daline->bin2txt( text, sizeof(text) );
+		snprintf( text+pos, sizeof(text)-pos, daline->asmsrc.c_str() );
+		if	( sizeof(text) > ( pos + daline->asmsrc.size() + 1 ) )
+			memcpy ( text+pos, daline->asmsrc.c_str(), daline->asmsrc.size()+1 );
+		gtk_clipboard_set_text( myclip, text, -1);
+		}
+	else	gtk_clipboard_set_text( myclip, daline->asmsrc.c_str(), -1);
 	}
 }
 
@@ -536,53 +545,16 @@ else if	( widget == glo->itram32 )
 	glo->ram_format = 32;
 else if	( widget == glo->itram64 )
 	glo->ram_format = 64;
-else if	( widget == glo->itram7 )
-	glo->ram_format = 7;
+else if	( widget == glo->itram65 )
+	glo->ram_format = 65;
 refresh( glo );
 }
 
 void ram_call_copy( GtkWidget *widget, glostru * glo )
 {
-unsigned int i = glo->ram_sel_i; // glo->ram_sel_i a ete deja mis a jour par ram_right_call()
-char text[128]; const char * fmt;
-text[0] = 0;
-unsigned long long adr = glo->targ->ramstock[0].adr0;
-adr += i * ((glo->ram_format==64)?(8):(4));
-switch	( glo->ram_format )
-	{
-	case 64 :
-		if	( (1+(2*i)) < glo->targ->ramstock[0].w32.size() )
-			{
-			fmt = OPT_FMT " %08X%08X";
-			snprintf( text, sizeof(text), fmt, (opt_type)adr,
-				glo->targ->ramstock[0].w32[1+(2*i)], glo->targ->ramstock[0].w32[2*i]  );
-			}
-		break;
-	case 8 :
-		if	( i < glo->targ->ramstock[0].w32.size() )
-			{
-			unsigned char * bytes = (unsigned char *)&(glo->targ->ramstock[0].w32[i]);
-			fmt = OPT_FMT " %02X %02X %02X %02X";
-			snprintf( text, sizeof(text), fmt, (opt_type)adr, bytes[0], bytes[1], bytes[2], bytes[3] );
-			}
-		break;
-	case 16 :
-		if	( i < glo->targ->ramstock[0].w32.size() )
-			{
-			unsigned short * shorts = (unsigned short *)&(glo->targ->ramstock[0].w32[i]);
-			fmt = OPT_FMT " %04X %04X";
-			snprintf( text, sizeof(text), fmt, (opt_type)adr, shorts[0], shorts[1] );
-			}
-		break;
-	case 32 :
-	default:
-		if	( i < glo->targ->ramstock[0].w32.size() )
-			{
-			fmt = OPT_FMT " %08X";
-			snprintf( text, sizeof(text), fmt, (opt_type)adr, glo->targ->ramstock[0].w32[i] );
-			}
-		break;
-	}
+char text[128];
+// glo->ram_sel_i a ete deja mis a jour par ram_right_call()
+glo->targ->ram_val2txt( text, sizeof(text), 0, glo->ram_sel_i, glo->ram_format );
 GtkClipboard * myclip;
 myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
 gtk_clipboard_set_text( myclip, text, -1);
@@ -729,10 +701,9 @@ else	{		// ligne asm
 		{
 		g_object_set( rendy, "text", daline->asmsrc.c_str(), NULL );
 		}
-	else if	( tree_column == glo->bincol )
+	else if	( ( glo->targ->option_binvis ) && ( tree_column == glo->bincol ) )
 		{
-		for	( unsigned int ib = 0; ib < daline->qbytes; ++ib )
-			snprintf( text + (ib*3), sizeof(text) - (ib*3), "%02X ", daline->bytes[ib] );
+		daline->bin2txt( text, sizeof(text) );
 		g_object_set( rendy, "text", text, NULL );
 		}
 	}
@@ -751,7 +722,7 @@ gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
 if	( tree_column == glo->madrcol )
 	{
 	unsigned long long adr = glo->targ->ramstock[0].adr0;
-	adr += i * (((glo->ram_format==64)||(glo->ram_format==7))?(8):(4));
+	adr += i * ((glo->ram_format>=64)?(8):(4));
 	if	( adr == glo->targ->get_sp() )
 		fmt = MARGIN_SP OPT_FMT;
 	else if	( adr == glo->targ->get_bp() )
@@ -794,12 +765,18 @@ setlocale( LC_ALL, "C" );	// question de survie
 glo->option_child_console = 1;
 glo->option_flavor = 0;
 glo->targ->option_binvis = 0;
+
 #ifdef PRINT_64
 glo->targ->regs.option_qregs = 18;
 #else
 glo->targ->regs.option_qregs = 10;
 #endif
+
+#ifdef PRINT_64
+glo->option_ramblock = 256;
+#else
 glo->option_ramblock = 128;
+#endif
 glo->option_disablock = 256;
 glo->option_toggles = 1;
 

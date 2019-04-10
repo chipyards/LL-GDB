@@ -59,21 +59,24 @@ string asmsrc;		// disassembed intruction
 void init() {
 	adr = 0; qbytes = 0; src0 = -1;
 	};
-unsigned long long nextadr() {			// adr instr. suivante
+unsigned long long nextadr() {				// adr instr. suivante
 	return( adr + qbytes );
-	};
-void count_the_bytes( string rawbytes ) {	// taille du code executable
-	qbytes = ( rawbytes.size() + 1 )/ 3;
-	};
-void parse_the_bytes( const char * txt );	// parsing du code executable
-void dump() {					// just for debug
-	if	( src0 >=0 )
-		printf("         src(%4d,%4d) file %d\n", src0, src1, isrc );
-	printf("%08X %u %s\n", (unsigned int)adr, qbytes, asmsrc.c_str() );
 	};
 void set_adr( string val ) {
 	adr = strtoull( val.c_str(), NULL, 0 );
 	};
+void count_the_bytes( string rawbytes ) {		// taille du code executable
+	qbytes = ( rawbytes.size() + 1 )/ 3;
+	};
+void parse_the_bytes( const char * txt );		// parsing du code executable
+int bin2txt( char * text, unsigned int size ) {	// dump executable code
+	text[0] = 0;	// au cas ou on aurait 0 bytes...
+	if	( size < (qbytes*3+1) )
+		return 0;
+	for	( unsigned int ib = 0; ib < qbytes; ++ib )
+		snprintf( text + (ib*3), size - (ib*3), "%02X ", bytes[ib] );
+	return qbytes*3;
+	}
 };
 
 class srcfile {		// one source file
@@ -178,7 +181,7 @@ int get_disa_ref( unsigned int ilist, unsigned int i ) { // retourne la ref cher
 		return list->lines[i];
 	else	return 0;
 	}
-void ram_val2txt( char * text, unsigned int size, unsigned int iram, unsigned int iline, int ram_format );
+int ram_val2txt( char * text, unsigned int size, unsigned int iram, unsigned int iline, int ram_format );
 unsigned long long get_ip() {
 	return regs.get_rip()->val;
 	}

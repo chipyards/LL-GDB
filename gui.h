@@ -75,11 +75,11 @@ GtkWidget *           scwm;		// scrollable window for memory
 GtkListStore *          tmodm;		// list model
 GtkWidget *             tlism;		// tree view used as list view
 GtkWidget *               mram;		// context menu
-GtkWidget *                 itram8;	// menu item for format
-GtkWidget *                 itram16;
+GtkWidget *                 itram8;	// menu item for 8-bit format
+GtkWidget *                 itram16;	// etc...
 GtkWidget *                 itram32;
 GtkWidget *                 itram64;
-GtkWidget *                 itram7;
+GtkWidget *                 itram65;	// 64 bits, display ascii 8 chars
 unsigned int		  ram_sel_i;	// index de la ligne courante
 GtkTreeViewColumn *       madrcol;	// ram adr column
 GtkTreeViewColumn *       mdatcol;	// ram data column

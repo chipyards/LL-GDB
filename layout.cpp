@@ -149,10 +149,10 @@ curitem = gtk_radio_menu_item_new_with_label( group, "ASCII");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( ram_call_fmt ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-glo->itram7 = curitem;
+glo->itram65 = curitem;
 gtk_widget_show ( curitem );
 
-curitem = gtk_menu_item_new_with_label("Copy Line");
+curitem = gtk_menu_item_new_with_label("Copy Contents");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( ram_call_copy ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
