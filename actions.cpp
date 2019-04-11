@@ -13,13 +13,14 @@ using namespace std;
 #include "target.h"
 #include "mi_parse.h"
 
+#include "arch_type.h"
 #include "gui.h"
 #include "actions.h"
 
 static void action_call( GtkAction *action, glostru * glo );
 
 // tableau d'actions  : c'est la que tout commence
-// associe opcode, texte, bindkey, callback 
+// associe opcode, texte, bindkey, callback
 // N.B.	- on peut utiliser une simple lettre comme bindkey,
 // 	  mais alors cette lettre ne peut plus etre utilisee pour remplir une entry!!!!
 //	- callback unique (sauf exception) c'est notre choix

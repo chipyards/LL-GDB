@@ -9,18 +9,6 @@
 #define UTF8_TRIANGLE	"\xe2\x96\xba"
 #define UTF8_CIRCLE	"\xe2\x97\x8f"
 
-#ifdef __amd64
-#define PRINT_64
-#endif
-
-#ifdef	PRINT_64
-#define OPT_FMT "%016llX"
-typedef unsigned long long opt_type;
-#else
-#define OPT_FMT "%08X"
-typedef unsigned int opt_type;
-#endif
-
 /*glo->t.printf(
 "stop     238a |\xe2\x8e\x8a|\n"
 "continue 23EF |\xe2\x8f\xaf|\n"
@@ -108,7 +96,6 @@ GtkTextBuffer *   bedi;			// text buffer
 daddy * dad;
 mi_parse * mipa;
 target * targ;
-int ram_format;
 
 unsigned int ilist;		// indice du listing courant
 unsigned int ip_in_list;	// indice de la ligne de eip dans le listing courant
@@ -143,23 +130,23 @@ GtkWidget * mk_ram_view( glostru * glo );
 GtkWidget * mk_bars( glostru * glo );
 // make the GUI
 void mk_the_gui( glostru * glo );
-// make the external editor window
-void mk_editor( glostru * glo );
 
 /** widget callbacks ------------------------------*/
 
 void reg_call_copy( GtkWidget *widget, glostru * glo );
+void reg_call_copy_all( GtkWidget *widget, glostru * glo );
 gboolean reg_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void disa_call_bk( GtkWidget *widget, glostru * glo );
 void disa_call_bk_all( GtkWidget *widget, glostru * glo );
 void disa_call_flavor( GtkWidget *widget, glostru * glo );
 void disa_call_binvis( GtkWidget *widget, glostru * glo );
-void disa_call_editor( GtkWidget *widget, glostru * glo );
 void disa_call_copy_adr( GtkWidget *widget, glostru * glo );
 void disa_call_copy_code( GtkWidget *widget, glostru * glo );
+void disa_call_copy_all( GtkWidget *widget, glostru * glo );
 gboolean disa_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void ram_call_fmt( GtkWidget *widget, glostru * glo );
 void ram_call_copy( GtkWidget *widget, glostru * glo );
+void ram_call_copy_all( GtkWidget *widget, glostru * glo );
 gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void ram_adr_call( GtkWidget *widget, glostru * glo );
 void cmd_call( GtkWidget *widget, glostru * glo );

@@ -19,6 +19,7 @@ using namespace std;
 #include "target.h"
 #include "mi_parse.h"
 
+#include "arch_type.h"
 #include "gui.h"
 
 /** ============================ list store utilities ======================= */
@@ -187,9 +188,7 @@ void refresh( glostru *glo )
 update_disass( glo );
 gtk_widget_queue_draw( glo->tlisl );
 gtk_widget_queue_draw( glo->tlisr );
-unsigned int s = glo->targ->ramstock[0].w32.size();	// hum ce n'est pas l'endroit ou faire ça
-if	( s > 0 )
-	list_store_resize( glo->tmodm, ((glo->ram_format>=64)?(s/2):(s)) );
+list_store_resize( glo->tmodm, glo->targ->get_ram_qlines(0) );	// hum ce n'est pas l'endroit ou faire ça, trop frequent
 gtk_widget_queue_draw( glo->scwl );
 gtk_widget_queue_draw( glo->wmain );
 }
@@ -204,44 +203,6 @@ if	( glo->option_child_console )
 queue_cmd( glo, "-exec-run --start", Run );	// ici GDB met un bk temporaire sur main
 queue_cmd( glo, "-data-list-register-values x", RegVal );
 glo->targ->job_dump();
-}
-
-// dump the disassembly listing to the editor
-void disa_editor_dump( glostru * glo, listing * list )
-{
-GtkTextIter iter;
-unsigned int i;
-int ref;
-char text[128]; const char * fmt;
-gtk_text_buffer_set_text ( glo->bedi, "", -1 );		// effacer tout
-gtk_text_buffer_get_end_iter( glo->bedi, &iter );
-for	( i = 0; i < list->lines.size(); ++i )
-	{
-	ref = list->lines[i];
-	if	( ref < 0 )
-		{		// ligne de code source
-		unsigned int ilin = listing::decode_line_number(ref);
-		unsigned int ifil = listing::decode_file_index(ref);
-		#ifdef	PRINT_64
-		fmt = "%4d             ";
-		#else
-		fmt = "%4d     ";
-		#endif
-		snprintf( text, sizeof(text), fmt, ilin );
-		gtk_text_buffer_insert( glo->bedi, &iter, text, -1 );	// line number
-		gtk_text_buffer_insert( glo->bedi, &iter, glo->targ->get_src_line( ifil, ilin ), -1 );	// src
-		gtk_text_buffer_insert( glo->bedi, &iter, "\n", -1 );
-		}
-	else	{		// ligne asm
-		asmline * daline = &(glo->targ->asmstock[(unsigned int)ref]);
-		unsigned long long adr = daline->adr;
-		fmt = OPT_FMT " ";
-		snprintf( text, sizeof(text), fmt, (opt_type)adr );
-		gtk_text_buffer_insert( glo->bedi, &iter, text, -1 );	// address
-		gtk_text_buffer_insert( glo->bedi, &iter, daline->asmsrc.c_str(), -1 );	// asm
-		gtk_text_buffer_insert( glo->bedi, &iter, "\n", -1 );
-		}
-	}
 }
 
 /** ============================ widget call backs ======================= */
@@ -364,6 +325,15 @@ myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
 gtk_clipboard_set_text( myclip, tbuf, -1);
 }
 
+void reg_call_copy_all( GtkWidget *widget, glostru * glo )
+{
+string s;
+glo->targ->regs.reg_all2string( &s );
+GtkClipboard * myclip;
+myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+gtk_clipboard_set_text( myclip, s.c_str(), -1);
+}
+
 // une call back pour le right-clic --> context menu
 // le menu est deja cree (par mk_reg_menu), cette fonction le poppe apres avoir customise certains labels
 gboolean reg_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo )
@@ -446,15 +416,6 @@ glo->targ->asm_init();	// effacer tout le disassembly car mi_parse tient compte 
 update_disass( glo );	// ce n'est pas seulement la visibilite des colonnes qui change
 }
 
-void disa_call_editor( GtkWidget *widget, glostru * glo )
-{
-if	( glo->wedi == NULL )
-	mk_editor( glo );
-else	gtk_window_present( GTK_WINDOW( glo->wedi ) );
-if	( glo->ilist < glo->targ->liststock.size() )
-	disa_editor_dump( glo, &(glo->targ->liststock[glo->ilist]) );
-}
-
 void disa_call_copy_adr( GtkWidget *widget, glostru * glo )
 {
 char tbuf[64]; const char * fmt = OPT_FMT;
@@ -490,6 +451,15 @@ else	{		// ligne asm
 		}
 	else	gtk_clipboard_set_text( myclip, daline->asmsrc.c_str(), -1);
 	}
+}
+
+void disa_call_copy_all( GtkWidget *widget, glostru * glo )
+{
+string s;
+glo->targ->disa_all2string( &s, glo->ilist );
+GtkClipboard * myclip;
+myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+gtk_clipboard_set_text( myclip, s.c_str(), -1);
 }
 
 // une call back pour le right-clic --> context menu
@@ -538,15 +508,15 @@ return FALSE;				/* we did not handle this */
 void ram_call_fmt( GtkWidget *widget, glostru * glo )
 {
 if	( widget == glo->itram8 )
-	glo->ram_format = 8;
+	glo->targ->option_ram_format = 8;
 else if	( widget == glo->itram16 )
-	glo->ram_format = 16;
+	glo->targ->option_ram_format = 16;
 else if	( widget == glo->itram32 )
-	glo->ram_format = 32;
+	glo->targ->option_ram_format = 32;
 else if	( widget == glo->itram64 )
-	glo->ram_format = 64;
+	glo->targ->option_ram_format = 64;
 else if	( widget == glo->itram65 )
-	glo->ram_format = 65;
+	glo->targ->option_ram_format = 65;
 refresh( glo );
 }
 
@@ -554,10 +524,19 @@ void ram_call_copy( GtkWidget *widget, glostru * glo )
 {
 char text[128];
 // glo->ram_sel_i a ete deja mis a jour par ram_right_call()
-glo->targ->ram_val2txt( text, sizeof(text), 0, glo->ram_sel_i, glo->ram_format );
+glo->targ->ram_val2txt( text, sizeof(text), 0, glo->ram_sel_i );
 GtkClipboard * myclip;
 myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
 gtk_clipboard_set_text( myclip, text, -1);
+}
+
+void ram_call_copy_all( GtkWidget *widget, glostru * glo )
+{
+string s;
+glo->targ->ram_all2string( &s, 0 );
+GtkClipboard * myclip;
+myclip = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+gtk_clipboard_set_text( myclip, s.c_str(), -1);
 }
 
 // une call back pour le right-clic --> context menu
@@ -721,8 +700,7 @@ char text[128]; const char * fmt;
 gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
 if	( tree_column == glo->madrcol )
 	{
-	unsigned long long adr = glo->targ->ramstock[0].adr0;
-	adr += i * ((glo->ram_format>=64)?(8):(4));
+	unsigned long long adr = glo->targ->get_ram_adr( 0, i );
 	if	( adr == glo->targ->get_sp() )
 		fmt = MARGIN_SP OPT_FMT;
 	else if	( adr == glo->targ->get_bp() )
@@ -733,7 +711,7 @@ if	( tree_column == glo->madrcol )
 	}
 else if	( tree_column == glo->mdatcol )
 	{
-	glo->targ->ram_val2txt( text, sizeof(text), 0, i, glo->ram_format );
+	glo->targ->ram_val2txt( text, sizeof(text), 0, i );
 	g_object_set( rendy, "text", text, NULL );
 	}
 }

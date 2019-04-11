@@ -53,6 +53,7 @@
 			<Add directory="F:/Appli/msys64/mingw32/lib" />
 		</Linker>
 		<Unit filename="../actions.cpp" />
+		<Unit filename="../arch_type.h" />
 		<Unit filename="../futf8.cpp" />
 		<Unit filename="../futf8.h" />
 		<Unit filename="../gui.cpp" />

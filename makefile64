@@ -59,6 +59,7 @@ mi_parse.o : mi_parse.h target.h
 spawn_w.o : spawn_w.h
 futf8.o : futf8.h
 transcript.o : transcript.h futf8.h
-gui.o : gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h modpop2.h
-actions.o : gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h
-layout.o : gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h
+gui.o : arch_type.h gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h modpop2.h
+target.o : arch_type.h gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h modpop2.h
+actions.o : arch_type.h gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h
+layout.o : arch_type.h gui.h mi_parse.h spawn_w.h transcript.h futf8.h target.h

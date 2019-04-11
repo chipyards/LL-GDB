@@ -4,6 +4,7 @@ using namespace std;
 #include <map>
 
 #include <string.h>
+#include "arch_type.h"
 #include "target.h"
 
 // remplir un listing a partir de l'adresse donnee, jusqu'a epuisement du disass
@@ -60,12 +61,90 @@ fill_listing( ilist, adr );
 return (int)ilist;
 }
 
+void regbank::reg_all2string( string * s )
+{
+unsigned int ireg;
+char tbuf[256]; const char * fmt = " " OPT_FMT;
+for	( ireg = 0; ireg < option_qregs; ++ireg )
+	{
+	*s += regs[ireg].name;
+	snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)regs[ireg].val );
+	*s += string(tbuf);
+	*s += string("\n");
+	}
+}
+
+void target::disa_all2string( string * s, unsigned int ilist )
+{
+unsigned int i, qi, qbmax, ifil, ilin, len;
+int ref; char tbuf[256]; const char * fmt;
+if	( ilist >= liststock.size() )
+	return;
+listing * list = &liststock[ilist];
+qi = liststock[ilist].lines.size();
+qbmax = 1;
+if	( option_binvis )	// preliminaire : recherche du max de qbytes pour tabulation
+	{
+	for	( i = 0; i < qi; ++i )
+		{
+		ref = list->lines[i];
+		if	( ref > 0 )
+			{
+			if	( asmstock[(unsigned int)ref].qbytes > qbmax )
+				qbmax = asmstock[(unsigned int)ref].qbytes;
+			}
+		}
+	}
+for	( i = 0; i < qi; ++i )	// boucle principale
+	{
+	ref = list->lines[i];
+	if	( ref < 0 )
+		{		// ligne de code source
+		ilin = listing::decode_line_number(ref);
+		ifil = listing::decode_file_index(ref);
+		// numero de ligne (tenant lieu d'adresse)
+		#ifdef	PRINT_64
+		fmt = "%4d             ";
+		#else
+		fmt = "%4d     ";
+		#endif
+		snprintf( tbuf, sizeof(tbuf), fmt, ilin );
+		*s += string(tbuf);
+		// tabulation supplementaire
+		if	( option_binvis )
+			*s += string("  ");
+		// code source
+		*s += string( get_src_line( ifil, ilin ) );
+		}
+	else	{		// ligne de desassembly
+		asmline * daline = &(asmstock[(unsigned int)ref]);
+		// adresse
+		unsigned long long adr = daline->adr;
+		fmt = OPT_FMT " ";
+		snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr );
+		*s += string(tbuf);
+		// bin code (optionnel)
+		if	( ( option_binvis ) && ( sizeof(tbuf) > (qbmax*3) ) )
+			{
+			len = daline->bin2txt( tbuf, sizeof(tbuf) );
+			if	( len < qbmax * 3 )
+				memset( tbuf+len, ' ', (qbmax*3) - len );
+			tbuf[qbmax*3] = 0;
+			*s += string(tbuf);
+			}
+		// desassembled code
+		*s += daline->asmsrc;
+		}
+	*s += string("\n");
+	}
+}
+
 // formatte une valeur lue dans une RAM
-int target::ram_val2txt( char * text, unsigned int size, unsigned int iram, unsigned int iline, int ram_format ) {
+int target::ram_val2txt( char * text, unsigned int size, unsigned int iram, unsigned int iline ) {
 const char * fmt;
 if	( iram >= ramstock.size() )
 	return snprintf( text, size, "no data" );
-switch	( ram_format )
+switch	( option_ram_format )
 	{
 	case 64 :
 		if	( (1+(2*iline)) < ramstock[iram].w32.size() )
@@ -123,26 +202,20 @@ switch	( ram_format )
 	}
 }
 
-void target::dump_listing( unsigned int ilist )	// unsecure !!!
+void target::ram_all2string( string * s, unsigned int iram )
 {
-unsigned int i, ifil, ilin;
-int ref;
-asmline * daline;
-printf("listing %u\n", ilist );
-for	( i = 0; i < liststock[ilist].lines.size(); ++i )
+unsigned int iline, qlines;
+char tbuf[256]; const char * fmt = OPT_FMT " ";
+qlines = get_ram_qlines(iram);
+if	( qlines == 0 )
+	return;
+for	( iline = 0; iline < qlines; ++iline )
 	{
-	ref = liststock[ilist].lines[i];
-	if	( ref < 0 )
-		{		// ligne de code source
-		ifil = listing::decode_file_index(ref);
-		ilin = listing::decode_line_number(ref);
-		printf("%-8d %s\n", ilin, filestock[ifil].relpath.c_str() );
-		}
-	else	{		// ligne asm
-		daline = &(asmstock[(unsigned int)ref]);
-		// daline->dump();	// ce dump envoie aussi un resume des lignes de src
-		printf("%08X %u %s\n", (unsigned int)daline->adr, daline->qbytes, daline->asmsrc.c_str() );
-		}
+	snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)get_ram_adr( iram, iline ) );
+	*s += string( tbuf );
+	ram_val2txt( tbuf, sizeof(tbuf), iram, iline );
+	*s += string( tbuf );
+	*s += string("\n");
 	}
 }
 

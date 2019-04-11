@@ -18,6 +18,7 @@ using namespace std;
 #include "target.h"
 #include "mi_parse.h"
 
+#include "arch_type.h"
 #include "gui.h"
 #include "actions.h"
 
@@ -37,6 +38,12 @@ g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( reg_call_copy ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 glo->itrg = curitem;
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("Copy All");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( reg_call_copy_all ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
 return curmenu;
@@ -80,12 +87,6 @@ g_signal_connect( G_OBJECT( curitem ), "activate",
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
-curitem = gtk_menu_item_new_with_label("Open in text editor");
-g_signal_connect( G_OBJECT( curitem ), "activate",
-		  G_CALLBACK( disa_call_editor ), (gpointer)glo );
-gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
-
 curitem = gtk_menu_item_new_with_label("Copy Addr");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( disa_call_copy_adr ), (gpointer)glo );
@@ -95,6 +96,12 @@ gtk_widget_show ( curitem );
 curitem = gtk_menu_item_new_with_label("Copy Code");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( disa_call_copy_code ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("Copy All Lines");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( disa_call_copy_all ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
@@ -134,7 +141,7 @@ g_signal_connect( G_OBJECT( curitem ), "activate",
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 glo->itram32 = curitem;
 gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), TRUE );	// defaut
-glo->ram_format = 32;							// defaut
+glo->targ->option_ram_format = 32;							// defaut
 gtk_widget_show ( curitem );
 
 curitem = gtk_radio_menu_item_new_with_label( group, "QWords (64-bit words)");
@@ -152,9 +159,15 @@ gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 glo->itram65 = curitem;
 gtk_widget_show ( curitem );
 
-curitem = gtk_menu_item_new_with_label("Copy Contents");
+curitem = gtk_menu_item_new_with_label("Copy Line Contents");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( ram_call_copy ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("Copy All Lines");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( ram_call_copy_all ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
@@ -349,63 +362,6 @@ g_signal_connect( curwidg, "button-press-event", (GCallback)ram_right_call, (gpo
 
 return(curwidg);
 }
-
-/** ============================ make the editor window ======================= */
-
-static gint editor_delete_call( GtkWidget *widget, GdkEvent *event, gpointer data )
-{
-gtk_widget_hide( widget );
-return (TRUE);
-}
-
-void mk_editor( glostru * glo )
-{
-GtkWidget *curwidg;
-
-curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );/* DIALOG est deprecated, POPUP est autre chose */
-/* ATTENTION c'est serieux : modal veut dire que la fenetre devient la
-   seule a capturer les evenements ( i.e. les autres sont bloquees ) */
-gtk_window_set_modal( GTK_WINDOW(curwidg), FALSE );
-// gtk_window_set_type_hint( GTK_WINDOW(curwidg), GDK_WINDOW_TYPE_HINT_DIALOG );
-
-g_signal_connect( curwidg, "delete_event",
-                  G_CALLBACK( editor_delete_call ), NULL );
-
-gtk_window_set_title( GTK_WINDOW(curwidg), "Editor" );
-glo->wedi = curwidg;
-
-/* creer boite verticale */
-curwidg = gtk_vbox_new( FALSE, 5 ); /* spacing ENTRE objets */
-gtk_container_add( GTK_CONTAINER( glo->wedi ), curwidg );
-glo->vedi = curwidg;
-
-// widget texte
-curwidg = gtk_scrolled_window_new( NULL, NULL );
-gtk_scrolled_window_set_shadow_type( GTK_SCROLLED_WINDOW(curwidg), GTK_SHADOW_IN );
-gtk_scrolled_window_set_policy ( GTK_SCROLLED_WINDOW(curwidg),
-                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS );
-gtk_box_pack_start( GTK_BOX( glo->vedi ), curwidg, TRUE, TRUE, 0);
-gtk_widget_set_usize( curwidg, 700, 100 );
-glo->sedi = curwidg;
-
-curwidg = gtk_text_view_new();
-glo->bedi = gtk_text_view_get_buffer( GTK_TEXT_VIEW(curwidg) );
-gtk_container_add( GTK_CONTAINER(glo->sedi), curwidg );
-
-// Change default font throughout the widget
-PangoFontDescription * font_desc;
-font_desc = pango_font_description_from_string("Monospace 10");
-gtk_widget_modify_font( curwidg, font_desc );
-pango_font_description_free( font_desc );
-
-// Change left margin throughout the widget
-gtk_text_view_set_left_margin( GTK_TEXT_VIEW( curwidg ), 10 );
-
-glo->tedi = curwidg;
-
-gtk_widget_show_all( glo->wedi );
-}
-
 
 /** ============================ make the GUI ======================= */
 

@@ -42,6 +42,7 @@ void set_reg( unsigned int pos, unsigned long long newval ) {
 registro * get_rip() { return &(regs[iip]); };
 registro * get_rsp() { return &(regs[isp]); };
 registro * get_rbp() { return &(regs[ibp]); };
+void reg_all2string( string * s );
 };
 
 #define MAXOPBYTES 16
@@ -69,7 +70,7 @@ void count_the_bytes( string rawbytes ) {		// taille du code executable
 	qbytes = ( rawbytes.size() + 1 )/ 3;
 	};
 void parse_the_bytes( const char * txt );		// parsing du code executable
-int bin2txt( char * text, unsigned int size ) {	// dump executable code
+int bin2txt( char * text, unsigned int size ) {		// format executable code
 	text[0] = 0;	// au cas ou on aurait 0 bytes...
 	if	( size < (qbytes*3+1) )
 		return 0;
@@ -147,6 +148,7 @@ vector <listing> liststock;
 map <unsigned long long, unsigned int> breakpoints;
 vector <memory> ramstock;
 int option_binvis;
+int option_ram_format;
 // constructeur
 target() : job_status(0LL), option_binvis(0) {
 	asm_init();
@@ -169,7 +171,6 @@ void asm_init() {
 	}
 int fill_listing( unsigned int ilist, unsigned long long adr );
 int add_listing( unsigned long long adr );
-void dump_listing( unsigned int i );
 int get_disa_ref( unsigned int ilist, unsigned int i ) { // retourne la ref cherchee ou 0 si echec
 	listing * list;					 // (0 pointe sur ligne asm "disassembly not available")
 	// recuperer le listing selon ilist
@@ -181,7 +182,21 @@ int get_disa_ref( unsigned int ilist, unsigned int i ) { // retourne la ref cher
 		return list->lines[i];
 	else	return 0;
 	}
-int ram_val2txt( char * text, unsigned int size, unsigned int iram, unsigned int iline, int ram_format );
+void disa_all2string( string * s, unsigned int ilist );
+int ram_val2txt( char * text, unsigned int size, unsigned int iram, unsigned int iline );
+unsigned int get_ram_qlines( unsigned int iram ) {
+	if	( iram >= ramstock.size() )
+		return 0;
+	if	( option_ram_format >= 64 )
+		return( ramstock[iram].w32.size() / 2 );
+	else	return( ramstock[iram].w32.size() );
+	}
+unsigned long long get_ram_adr( unsigned int iram, unsigned int iline ) {
+	if	( iram >= ramstock.size() )
+		return 0;
+	return( ramstock[iram].adr0 + iline * ((option_ram_format>=64)?(8):(4)) );
+	}
+void ram_all2string( string * s, unsigned int iram );
 unsigned long long get_ip() {
 	return regs.get_rip()->val;
 	}
@@ -205,9 +220,6 @@ const char * get_src_line( unsigned int ifil, unsigned int ilin ) {
 		if	( --ilin < filestock[ifil].lines.size() )
 			return( filestock[ifil].lines[ilin].c_str() );
 		else	{
-			// static char tbuf[64];
-			// snprintf( tbuf, sizeof(tbuf), "invalid src line, status %d", filestock[ifil].status );
-			// return tbuf;
 			return filestock[ifil].relpath.c_str();
 			}
 		}
