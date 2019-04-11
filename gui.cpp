@@ -52,8 +52,8 @@ else			return -depth;
 
 /** ============================ action functions ======================= */
 
-void refresh( glostru * glo );
 void init_step( glostru * glo );
+void update_disass( glostru * glo );
 
 void some_stats( glostru * glo )
 {
@@ -118,8 +118,10 @@ glo->dad->send_cmd( "\n" );
 
 void expa( glostru * glo )
 {
-refresh( glo );
-glo->targ->job_status &= (~RUNNING_MASK);	// PROVIZOAR
+update_disass( glo );
+list_store_resize( glo->tmodm, glo->targ->get_ram_qlines(0) );	// hum ce n'est pas l'endroit ou faire ça, trop frequent
+gtk_widget_queue_draw( glo->wmain );
+glo->targ->job_status &= (~RUNNING_MASK);
 }
 
 void expb( glostru * glo )
@@ -183,16 +185,6 @@ else	{ // NON allons desassembler si possible
 	}
 }
 
-void refresh( glostru *glo )
-{
-update_disass( glo );
-gtk_widget_queue_draw( glo->tlisl );
-gtk_widget_queue_draw( glo->tlisr );
-list_store_resize( glo->tmodm, glo->targ->get_ram_qlines(0) );	// hum ce n'est pas l'endroit ou faire ça, trop frequent
-gtk_widget_queue_draw( glo->scwl );
-gtk_widget_queue_draw( glo->wmain );
-}
-
 // cette fonction pretend assurer les etapes de demarrage
 void init_step( glostru *glo )
 {
@@ -202,7 +194,7 @@ if	( glo->option_child_console )
 // send_cmd( glo, "-gdb-set mi-async on");	// marche PO sous windows
 queue_cmd( glo, "-exec-run --start", Run );	// ici GDB met un bk temporaire sur main
 queue_cmd( glo, "-data-list-register-values x", RegVal );
-glo->targ->job_dump();
+// glo->targ->job_dump();
 }
 
 /** ============================ widget call backs ======================= */
@@ -223,7 +215,7 @@ int idle_call( glostru * glo )
 int retval;
 char tbuf[1024];
 int d;
-// int tog1 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog1) );	// cmd dump
+int tog1 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog1) );	// cmd dump
 int tog2 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog2) );	// MI dump
 int tog3 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog3) );	// streams dump
 int tog4 = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->btog4) );	// raw dump
@@ -241,46 +233,85 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 		modpop( "erreur", "erreur MI parser", GTK_WINDOW(glo->wmain) );
 		glo->t.printf("Err %d\n", -retval ); break;
 		}
-	else	{					// >0 = fin de quelque chose, a extraire seulement si necessaire
+	else	{					// >0 = fin de quelque chose
+		// d'abord extraire pour mettre a jour la target
 		glo->mipa->extract( retval, glo->targ );
-		if	(
+		// ensuite les dumps optionnels
+		if	(					// dump du MI indente
 			( ( tog2 ) && ( !tog4 ) ) &&
 			( ( retval >= 1 ) && ( retval <= 8 ) )
 			)
-			{	// dump du MI indente
+			{
+			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
+				glo->t.printf("%s\n", tbuf );
+			}
+		else if	(					// dump du prompt et des streams
+			( ( tog3 ) && ( !tog4 ) ) &&
+			( retval == 9 )
+			)
+			{
 			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
 				{
+				tbuf[sizeof(tbuf)-1] = 0;	// si jamais il manque le terminateur
+				int pos = (int)strlen(tbuf) - 1;
+				while	( ( pos >= 0 ) && ( tbuf[pos] <= ' ' ) )
+					tbuf[pos--] = 0;	// on enleve line end et trailing blank
 				glo->t.printf("%s\n", tbuf );
 				}
 			}
-		else if	( retval == 9 )			// 9 = fin de stream-output
+		// ensuite regarder l'evolution des jobs (N.B. job_reset_running a seulement pu etre appele par extract() )
+		job_enum fjob = glo->targ->job_finished();
+		if	( fjob != NOJOB )
 			{
-			if	( glo->mipa->nam.c_str()[0] == '(' )		// prompt de GDB
+			switch	( fjob )
 				{
-				refresh( glo );
+				case GDBSet:
+				     break;
+				case File:
+				     break;
+				case FileInfo:
+				     break;
+				case BreakSetKill: gtk_widget_queue_draw( glo->tlisl );
+				     break;
+				case BreakList: gtk_widget_queue_draw( glo->tlisl );
+				     break;
+				case Run:	if	( ( !tog2 ) && ( !tog3 ) && ( !tog4 ) )
+						glo->t.printf("stopped : %s\n", glo->targ->reason.c_str() );
+				     break;
+				case Continue:	if	( ( !tog2 ) && ( !tog3 ) && ( !tog4 ) )
+						glo->t.printf("stopped : %s\n", glo->targ->reason.c_str() );
+				     break;
+				case RegNames:	gtk_widget_queue_draw( glo->tlisr );
+				     break;
+				case RegVal:	gtk_widget_queue_draw( glo->tlisr );
+						update_disass( glo ); gtk_widget_queue_draw( glo->tlisl );
+				     break;
+				case Disass:	update_disass( glo ); gtk_widget_queue_draw( glo->tlisl );
+				     break;
+				case RAMRead:	gtk_widget_queue_draw( glo->tlism );
+						list_store_resize( glo->tmodm, glo->targ->get_ram_qlines(0) );
+				     break;
+				case NOJOB: break;
 				}
-			if	( ( tog3 ) && ( !tog4 ) )
-				{						// dump du prompt ou stream
-				if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
+			if	( tog1 )
+				switch	( fjob )
 					{
-					tbuf[sizeof(tbuf)-1] = 0;	// si jamais il manque le terminateur
-					int pos = (int)strlen(tbuf) - 1;
-					while	( ( pos >= 0 ) && ( tbuf[pos] <= ' ' ) )
-						tbuf[pos--] = 0;	// on enleve line end et trailing blank
-					glo->t.printf("%s\n", tbuf );
+					case GDBSet:		glo->t.printf("end GDBSet\n");		break;
+					case File:		glo->t.printf("end File\n");		break;
+					case FileInfo:		glo->t.printf("end FileInfo\n");	break;
+					case BreakSetKill:	glo->t.printf("end BreakSetKill\n");	break;
+					case BreakList:		glo->t.printf("end BreakList\n");	break;
+					case Run:		glo->t.printf("end Run\n");		break;
+					case Continue:		glo->t.printf("end Continue\n");	break;
+					case RegNames:		glo->t.printf("end RegNames\n");	break;
+					case RegVal:		glo->t.printf("end RegVal\n");		break;
+					case Disass:		glo->t.printf("end Disass\n");		break;
+					case RAMRead:		glo->t.printf("end RAMRead\n");		break;
+					case NOJOB: break;
 					}
-				}
-			}
-		else if	( ( retval == 8 ) && ( !tog2 ) && ( !tog3 ) && ( !tog4 ) )
-			{
-			// PROVISOAR : *stopped devrait etre interprete par mi_parse et reporte dans targ->job_status
-			if	( glo->mipa->dump( retval, tbuf, sizeof(tbuf) ) )
-				{	// hum! human readable code interpreted by machine !
-				if	( strncmp( tbuf, "fin report *stopped", 19 ) == 0 )
-					glo->t.printf("stopped : %s\n", glo->targ->reason.c_str() );
-				}
-			}
-		}
+			// printf("job %d fini\n", (int)fjob ); fflush(stdout);
+			}	// fin de "fin de job"
+		}	// fin de "fin de quelque chose"
 	}	// while child_getc()
 if	( glo->targ->job_isanyrunning()  )
 	{
@@ -517,7 +548,8 @@ else if	( widget == glo->itram64 )
 	glo->targ->option_ram_format = 64;
 else if	( widget == glo->itram65 )
 	glo->targ->option_ram_format = 65;
-refresh( glo );
+list_store_resize( glo->tmodm, glo->targ->get_ram_qlines(0) );
+gtk_widget_queue_draw( glo->tlism );
 }
 
 void ram_call_copy( GtkWidget *widget, glostru * glo )
@@ -756,7 +788,7 @@ glo->option_ramblock = 256;
 glo->option_ramblock = 128;
 #endif
 glo->option_disablock = 256;
-glo->option_toggles = 1;
+glo->option_toggles = 0;
 
 for	( int iopt = 1; iopt < argc; ++iopt )
 	{
@@ -778,6 +810,10 @@ gtk_init(&argc,&argv);
 // main window layout
 mk_the_gui( glo );
 global_main_window = GTK_WINDOW(glo->wmain);
+
+// etat initial des toggles et radio-buttons
+gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(glo->itram32), TRUE );	// defaut
+glo->targ->option_ram_format = 32;							// defaut
 
 if	( glo->option_toggles & 1 )
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( glo->btog1 ), TRUE );

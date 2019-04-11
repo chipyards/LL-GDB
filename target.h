@@ -121,12 +121,13 @@ void txt2w32( const char * txt );	// parser les bytes en hex --> w32
 };
 
 // liste des jobs, par ordre de priorite decroissante
-typedef enum { GDBSet=0, File, FileInfo, BreakSetKill, BreakList, Run, Continue, RegNames, RegVal, Disass, RAMRead } job_enum;
+typedef enum {  GDBSet=0, File, FileInfo, BreakSetKill, BreakList,
+		Run, Continue, RegNames, RegVal, Disass, RAMRead, NOJOB=-1 } job_enum;
 #define QJOB 11	// nombre de jobs prevus dans cette enum A MAINTENIR A LA MAIN!!!
 #define QUEUED_BIT	1	// bit pour un job dans job_status
 #define RUNNING_BIT	2
 #define ERROR_BIT	4
-#define DONE_BIT	8
+#define UNUSED_BIT	8
 #define CLEAR_BITS	(QUEUED_BIT|RUNNING_BIT|ERROR_BIT)	// all but DONE
 #define QUEUED_MASK	0x1111111111111111LL
 #define RUNNING_MASK	0x2222222222222222LL
@@ -135,6 +136,7 @@ typedef enum { GDBSet=0, File, FileInfo, BreakSetKill, BreakList, Run, Continue,
 class target {
 public:
 unsigned long long job_status;	// 4 bits/job
+job_enum job_just_finished;
 string job_cmd[QJOB];		// commande courante pour chaque job
 string main_file_name;
 string reason;		// reason of *stopped
@@ -150,7 +152,7 @@ vector <memory> ramstock;
 int option_binvis;
 int option_ram_format;
 // constructeur
-target() : job_status(0LL), option_binvis(0) {
+target() : job_status(0LL), job_just_finished(NOJOB), option_binvis(0) {
 	asm_init();
 	memory badram;		// avoir toujours au moins une RAM, meme vide
 	badram.adr0 = 0;
@@ -237,12 +239,19 @@ void job_set_queued( job_enum job ) {
 bool job_is_queued( job_enum job ) {
 	return ( ( job_status & ( (long long)QUEUED_BIT << (((unsigned int)job)<<2) ) ) != 0 );
 	}
+bool job_is_running( job_enum job ) {
+	return ( ( job_status & ( (long long)RUNNING_BIT << (((unsigned int)job)<<2) ) ) != 0 );
+	}
 void job_set_running( job_enum job ) {
 	job_status &= (~( (long long)CLEAR_BITS << (((unsigned int)job)<<2) ));
 	job_status |= ( (long long)RUNNING_BIT << (((unsigned int)job)<<2) );
 	}
 void job_reset_running( job_enum job ) {
-	job_status &= (~( (long long)RUNNING_BIT << (((unsigned int)job)<<2) ));
+	if	( job_is_running( job ) )
+		{
+		job_status &= (~( (long long)RUNNING_BIT << (((unsigned int)job)<<2) ));
+		job_just_finished = job;
+		}
 	}
 void job_set_error( job_enum job ) {
 	job_status &= (~( (long long)CLEAR_BITS << (((unsigned int)job)<<2) ));
@@ -261,27 +270,32 @@ bool job_isanyrunning() {
 bool job_isanyerror() {
 	return ( ( job_status & ERROR_MASK ) != 0 );
 	}
-int job_nextqueued() {
+job_enum job_nextqueued() {
 	unsigned long long q = job_status;
 	int ijob = 0;
 	while	( ijob < QJOB )
 		{
 		if	( (int)q & QUEUED_BIT )
-			return ijob;
+			return (job_enum)ijob;
 		q >>= 4; ++ijob;
 		}
-	return -1;
+	return NOJOB;
 	}
-int job_running() {
+job_enum job_running() {		// return the job which is running (supposedly unique)
 	unsigned long long q = job_status;
 	int ijob = 0;
 	while	( ijob < QJOB )
 		{
 		if	( (int)q & RUNNING_BIT )
-			return ijob;
+			return (job_enum)ijob;
 		q >>= 4; ++ijob;
 		}
-	return -1;
+	return NOJOB;
+	}
+job_enum job_finished() {		// return the job which was ended since the last call
+	job_enum ijob = job_just_finished;
+	job_just_finished = NOJOB;
+	return ijob;
 	}
 void job_dump() {
 	unsigned long long q = job_status;
@@ -289,7 +303,7 @@ void job_dump() {
 		{
 		printf("%c%c%c%c %s\n",
 			((int)q&QUEUED_BIT)?('Q'):('-'),((int)q&RUNNING_BIT)?('R'):('-'),
-			((int)q&ERROR_BIT)?('E'):('-'),((int)q&DONE_BIT)?('D'):('-'), job_cmd[ijob].c_str() );
+			((int)q&ERROR_BIT)?('E'):('-'),((int)q&UNUSED_BIT)?('U'):('-'), job_cmd[ijob].c_str() );
 		q >>= 4;
 		}
 	printf("\n"); fflush(stdout);

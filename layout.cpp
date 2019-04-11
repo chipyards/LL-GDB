@@ -140,8 +140,6 @@ g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( ram_call_fmt ), (gpointer)glo );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 glo->itram32 = curitem;
-gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), TRUE );	// defaut
-glo->targ->option_ram_format = 32;							// defaut
 gtk_widget_show ( curitem );
 
 curitem = gtk_radio_menu_item_new_with_label( group, "QWords (64-bit words)");
