@@ -1,5 +1,3 @@
-// demo pour la fenetre de transcript + menu bar
-// il y a une entree de "ligne de commande" en bas
 
 #include <gtk/gtk.h>
 #include <stdio.h>
@@ -21,6 +19,14 @@ using namespace std;
 #include "arch_type.h"
 #include "gui.h"
 #include "actions.h"
+
+/* fichier de donnees graphiques produit avec les commandes suivantes :
+gdk-pixbuf-csource --raw --name=restart    PNG/restart.png > button_pixbuf.c
+gdk-pixbuf-csource --raw --name=continue_k PNG/continue_keil.png >> button_pixbuf.c
+gdk-pixbuf-csource --raw --name=step_into  PNG/step_into.png >> button_pixbuf.c
+gdk-pixbuf-csource --raw --name=step_over  PNG/step_over.png >> button_pixbuf.c
+gdk-pixbuf-csource --raw --name=step_out   PNG/step_out.png >> button_pixbuf.c */
+#include "button_pixbuf.c"
 
 /** ============================ make context menus ======================= */
 
@@ -390,15 +396,21 @@ gtk_window_set_title( GTK_WINDOW(curwidg), "LL-GDB" );
 gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 2 );
 glo->wmain = curwidg;
 
+// paire horizontale "paned"
+// RAM views a droite, tout le reste a gauche
+curwidg = gtk_hpaned_new ();
+gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
+glo->hpan = curwidg;
+
 // boite verticale
 curwidg = gtk_vbox_new( FALSE, 2 );
-gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
-glo->vmain = curwidg;
+glo->vleft = curwidg;
+gtk_paned_pack1( GTK_PANED(glo->hpan), curwidg, TRUE, FALSE );
 
-// boite horizontale
+// boite horizontale pour menus et boutons
 curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
 gtk_container_set_border_width( GTK_CONTAINER (curwidg), 1);
-gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->vleft ), curwidg, FALSE, FALSE, 0 );
 glo->htool = curwidg;
 
 // les actions (bindkeys)
@@ -408,136 +420,119 @@ curwidg = mk_mbar( glo );
 gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
 glo->mbar = curwidg;
 
-/* simple boutons */
+/* simple boutons avec image */
+GdkPixbuf * curpix;
+
 curwidg = gtk_button_new();
 g_signal_connect( curwidg, "clicked",
                   G_CALLBACK( restart_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
-gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/restart.png") );
+// gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/restart.png") );
+curpix = gdk_pixbuf_new_from_inline( -1, restart, FALSE, NULL );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_pixbuf( curpix ) );
 gtk_widget_set_tooltip_markup( curwidg, "Start or Restart " HOTKEY "Shift-F5</span>");
 
 curwidg = gtk_button_new();
 g_signal_connect( curwidg, "clicked",
                   G_CALLBACK( run_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
-gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/continue_keil.png") );
+curpix = gdk_pixbuf_new_from_inline( -1, continue_k, FALSE, NULL );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_pixbuf( curpix ) );
 gtk_widget_set_tooltip_markup( curwidg, "Run " HOTKEY "F5</span>");
 
 curwidg = gtk_button_new();
 g_signal_connect( curwidg, "clicked",
                   G_CALLBACK( step_into_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
-gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/step_into.png") );
+curpix = gdk_pixbuf_new_from_inline( -1, step_into, FALSE, NULL );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_pixbuf( curpix ) );
 gtk_widget_set_tooltip_markup( curwidg, "Step Into " HOTKEY "F11</span>");
 
 curwidg = gtk_button_new();
 g_signal_connect( curwidg, "clicked",
                   G_CALLBACK( step_over_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
-gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/step_over.png") );
+curpix = gdk_pixbuf_new_from_inline( -1, step_over, FALSE, NULL );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_pixbuf( curpix ) );
 gtk_widget_set_tooltip_markup( curwidg, "Step Over " HOTKEY "Shift-F11</span>");
 
 curwidg = gtk_button_new();
 g_signal_connect( curwidg, "clicked",
                   G_CALLBACK( step_out_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
-gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/step_out.png") );
+curpix = gdk_pixbuf_new_from_inline( -1, step_out, FALSE, NULL );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_pixbuf( curpix ) );
 gtk_widget_set_tooltip_markup( curwidg, "Step Out " HOTKEY "Ctrl-F11</span>");
 
 // paire verticale "paned"
+// en haut registres et disassembly, en bas transcript
 curwidg = gtk_vpaned_new ();
-gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->vleft ), curwidg, TRUE, TRUE, 0 );
 // gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 5 );	// le tour exterieur
 glo->vpan = curwidg;
 
-// paire horizontale "paned" dans la moitie superieure de la paned verticale
-// avec 1 notebook et une seconde paire
+// paire horizontale "paned"
+// a gauche registres, a droite disassembly
 curwidg = gtk_hpaned_new ();
-gtk_paned_pack1( GTK_PANED(glo->vpan), curwidg, TRUE, FALSE );
-glo->hpan = curwidg;
-
-curwidg = gtk_notebook_new();
-gtk_paned_pack1 (GTK_PANED (glo->hpan), curwidg, FALSE, FALSE );
-glo->notl = curwidg;
-
-curwidg = gtk_hpaned_new ();
-gtk_paned_pack2 (GTK_PANED (glo->hpan), curwidg, TRUE, FALSE );
-gtk_widget_set_size_request (curwidg, 740, 100);
+gtk_paned_pack1( GTK_PANED (glo->vpan), curwidg, TRUE, FALSE );
 glo->hpan2 = curwidg;
 
-// notebook de gauche : registres
+// notebook registres + flags
+curwidg = gtk_notebook_new();
+gtk_paned_pack1 (GTK_PANED (glo->hpan2), curwidg, FALSE, FALSE );
+glo->notrf = curwidg;
+
+// registres : scroll pour pouvoir ajouter float, mmx etc...
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
-gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Registers") );
+gtk_notebook_append_page( GTK_NOTEBOOK( glo->notrf ), curwidg, gtk_label_new("Registers") );
 #ifdef PRINT_64
 gtk_widget_set_size_request (curwidg, 168, 450);
 #else
 gtk_widget_set_size_request (curwidg, 110, 260);
 #endif
-
 glo->scwr = curwidg;
 
-glo->mreg = mk_reg_menu( glo );
+// register view
 curwidg = mk_reg_view( glo );
 gtk_container_add( GTK_CONTAINER( glo->scwr ), curwidg );
 glo->tlisr = curwidg;
+// menu contextuel (sera appele par une callback de la treeview)
+glo->mreg = mk_reg_menu( glo );
 
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
-gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Flags") );
-gtk_widget_set_size_request (curwidg, 60, 100);
-glo->scw2 = curwidg;
+gtk_notebook_append_page( GTK_NOTEBOOK( glo->notrf ), curwidg, gtk_label_new("Flags") );
+glo->scwf = curwidg;
 
-// seconde paire : disassembly + RAM
-// disassembly
+// disassembly scroll
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS );
-gtk_paned_pack1 (GTK_PANED (glo->hpan2), curwidg, TRUE, FALSE );
+gtk_paned_pack2 (GTK_PANED (glo->hpan2), curwidg, TRUE, FALSE );
+gtk_widget_set_size_request (curwidg, 480, 400);
 glo->scwl = curwidg;
 
-glo->mdisa = mk_disa_menu( glo );
+// disassembly treeview
 curwidg = mk_disa_view( glo );
 gtk_container_add( GTK_CONTAINER( glo->scwl ), curwidg );
 glo->tlisl = curwidg;
+// menu contextuel (sera appele par une callback de la treeview)
+glo->mdisa = mk_disa_menu( glo );
 
-// RAM
-curwidg = gtk_vbox_new( FALSE, 2 );
-gtk_paned_pack2 (GTK_PANED (glo->hpan2), curwidg, FALSE, FALSE );
-#ifdef PRINT_64
-gtk_widget_set_size_request (curwidg, 238, 100);
-#else
-gtk_widget_set_size_request (curwidg, 168, 100);
-#endif
-glo->vram = curwidg;
-
-curwidg = gtk_entry_new();
-g_signal_connect( curwidg, "activate",
-                  G_CALLBACK( ram_adr_call ), (gpointer)glo );
-gtk_entry_set_editable( GTK_ENTRY(curwidg), TRUE );
-gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
-gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, FALSE, FALSE, 0 );
-glo->eram = curwidg;
-
-curwidg = gtk_scrolled_window_new( NULL, NULL );
-gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS );
-gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, TRUE, TRUE, 0 );
-glo->scwm = curwidg;
-
-glo->mram = mk_ram_menu( glo );
-curwidg = mk_ram_view( glo );
-gtk_container_add( GTK_CONTAINER( glo->scwm ), curwidg );
-glo->tlism = curwidg;
+// fin de hpan2
 
 // Le transcript dans la moitie inferieure de la paned verticale
 curwidg = glo->t.create();
 gtk_paned_pack2( GTK_PANED(glo->vpan), curwidg, FALSE, TRUE );
-gtk_widget_set_size_request( curwidg, 700, 200 );
+gtk_widget_set_size_request( curwidg, 700, 100 );
 glo->wtran = curwidg;
+
+// fin de vpan
 
 // boite horizontale
 curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
 gtk_container_set_border_width( GTK_CONTAINER (curwidg), 2);
-gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->vleft ), curwidg, FALSE, FALSE, 0 );
 glo->hbut = curwidg;
 
 /* entree editable */
@@ -572,6 +567,41 @@ curwidg = gtk_check_button_new_with_label ("raw dump");
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( curwidg ), FALSE );
 glo->btog4 = curwidg;
+
+// fin de vleft
+
+// RAM
+curwidg = gtk_vbox_new( FALSE, 2 );
+gtk_paned_pack2 (GTK_PANED (glo->hpan), curwidg, FALSE, FALSE );
+#ifdef PRINT_64
+gtk_widget_set_size_request (curwidg, 238, 200);
+#else
+gtk_widget_set_size_request (curwidg, 168, 200);
+#endif
+glo->vram = curwidg;
+
+curwidg = gtk_entry_new();
+g_signal_connect( curwidg, "activate",
+                  G_CALLBACK( ram_adr_call ), (gpointer)glo );
+gtk_entry_set_editable( GTK_ENTRY(curwidg), TRUE );
+gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
+gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, FALSE, FALSE, 0 );
+glo->eram = curwidg;
+
+// ram scroll
+curwidg = gtk_scrolled_window_new( NULL, NULL );
+gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS );
+gtk_box_pack_start( GTK_BOX( glo->vram ), curwidg, TRUE, TRUE, 0 );
+glo->scwm = curwidg;
+
+// ram view
+curwidg = mk_ram_view( glo );
+gtk_container_add( GTK_CONTAINER( glo->scwm ), curwidg );
+glo->tlism = curwidg;
+// menu contextuel (sera appele par une callback de la treeview)
+glo->mram = mk_ram_menu( glo );
+
+// fin de hpan
 
 gtk_widget_show_all( glo->wmain );
 }

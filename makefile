@@ -28,7 +28,7 @@ LIBS= -L$(GTKBASE)/lib \
 # enlever -mwindows pour avoir la console stdout
 
 # INCS= `pkg-config --cflags gtk+-2.0` -mms-bitfields
-INCS= -mms-bitfields \
+INCS= -mms-bitfields -Wno-deprecated-declarations\
 -I$(GTKBASE)/include/atk-1.0 \
 -I$(GTKBASE)/include/cairo \
 -I$(GTKBASE)/include/gdk-pixbuf-2.0 \

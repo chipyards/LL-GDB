@@ -35,25 +35,23 @@
 typedef struct
 {
 GtkWidget * wmain;			// main window
-GtkWidget * vmain;			// vertical box
-GtkWidget *   htool;			// horizontal toolbox
-GtkWidget *     mbar;			// horizontal menu
-GtkWidget *     bqui;			// button
-GtkWidget *   vpan;			// vertical paned pair
-GtkWidget *     hpan;			// horizontal paned pair
-GtkWidget *       notl;			// left notebook
-GtkWidget *         scwr;		// scrollable window for regs
-GtkListStore *        tmodr;		// list model
-GtkWidget *           tlisr;		// tree view used as list view
-GtkWidget *             mreg;		// context menu
-GtkWidget *               itrg;		// menu item for register
-unsigned int		reg_sel_i;	// index de la ligne courante
-GtkWidget *         scw2;		// scrollable window for flags
+GtkWidget * hpan;			// horizontal paned pair
+GtkWidget *   vleft;			// vertical box
+GtkWidget *     htool;			// horizontal toolbox
+GtkWidget *       mbar;			// window menu (file etc...)
+GtkWidget *     vpan;			// vertical paned pair
 GtkWidget *       hpan2;		// second horizontal paned pair
-
+GtkWidget *         notrf;		// notebook reg/flags
+GtkWidget *           scwr;		// scrollable window for regs
+GtkWidget *             tlisr;		// tree view used as list view
+GtkListStore *            tmodr;	// list model
+GtkWidget *               mreg;		// context menu appele par une call back de la treeview
+GtkWidget *                 itrg;	// menu item for register
+unsigned int              reg_sel_i;	// index de la ligne courante
+GtkWidget *           scwf;		// scrollable window for flags (on mettra treeview direct en fait)
 GtkWidget *         scwl;		// scrollable window for disassembly
-GtkListStore *        tmodl;		// list model
 GtkWidget *           tlisl;		// tree view used as list view
+GtkListStore *          tmodl;		// list model
 GtkWidget *             mdisa;		// context menu
 GtkWidget *               itbk;		// menu item for breakpoint
 int			disa_sel_ref;	// ref de la ligne de disas courante
@@ -61,30 +59,30 @@ unsigned long long	disa_sel_adr;	// addr de la ligne de disas courante
 GtkTreeViewColumn *     adrcol;		// assembly adr column
 GtkTreeViewColumn *     bincol;		// assembly bin column
 GtkTreeViewColumn *     asmcol;		// assembly src column
-
-GtkWidget *         vram;		// boite verticale
-GtkWidget *           eram;		// text entry pour addr
-GtkWidget *           scwm;		// scrollable window for memory
-GtkListStore *          tmodm;		// list model
-GtkWidget *             tlism;		// tree view used as list view
-GtkWidget *               mram;		// context menu
-GtkWidget *                 itram8;	// menu item for 8-bit format
-GtkWidget *                 itram16;	// etc...
-GtkWidget *                 itram32;
-GtkWidget *                 itram64;
-GtkWidget *                 itram65;	// 64 bits, display ascii 8 chars
-unsigned int		  ram_sel_i;	// index de la ligne courante
-GtkTreeViewColumn *       madrcol;	// ram adr column
-GtkTreeViewColumn *       mdatcol;	// ram data column
-
 transzcript t;
-GtkWidget *     wtran;			// transcript window
-GtkWidget *   hbut;			// horizontal box
-GtkWidget *     ecmd;			// text entry
-GtkWidget *     btog1;			// button
-GtkWidget *     btog2;			// button
-GtkWidget *     btog3;			// button
-GtkWidget *     btog4;			// button
+GtkWidget *       wtran;		// transcript window
+GtkWidget *     hbut;			// horizontal box
+GtkWidget *       ecmd;			// text entry for command line
+GtkWidget *       btog1;		// button
+GtkWidget *       btog2;		// button
+GtkWidget *       btog3;		// button
+GtkWidget *       btog4;		// button
+
+GtkWidget *   vram;			// boite verticale
+GtkWidget *     eram;			// text entry pour addr
+GtkWidget *     scwm;			// scrollable window for memory
+GtkWidget *       tlism;		// tree view used as list view
+GtkListStore *      tmodm;		// list model
+GtkWidget *         mram;		// context menu
+GtkWidget *           itram8;		// menu item for 8-bit format
+GtkWidget *           itram16;		// etc...
+GtkWidget *           itram32;
+GtkWidget *           itram64;
+GtkWidget *           itram65;		// 64 bits, display ascii 8 chars
+unsigned int        ram_sel_i;		// index de la ligne courante
+GtkTreeViewColumn * madrcol;		// ram adr column
+GtkTreeViewColumn * mdatcol;		// ram data column
+
 int         idle_id;			// id pour la fonction idle du timeout
 
 // fenetre annexe pour editeur
