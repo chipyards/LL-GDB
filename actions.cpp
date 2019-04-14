@@ -46,13 +46,10 @@ static GtkActionEntry ui_entries[] = {
   { "expd",	 	NULL, "Exp D",			"<control>D",	NULL, G_CALLBACK(action_call) },
 };
 
-static GtkUIManager *manui;
-
-// la callback principale
-static void action_call( GtkAction *action, glostru * glo )
+// le passage centralise pour toutes les actions
+// pilote les lectures registres et RAM quand necessaire
+static void action_do( glostru * glo, const char * aname )
 {
-const char * aname;
-aname = gtk_action_get_name( action );
 int get = 0;
 switch	( aname[0] )
 	{
@@ -101,6 +98,14 @@ if	( get )
 		}
 	}
 }
+
+// la callback principale pour les menus et bindkeys
+static void action_call( GtkAction *action, glostru * glo )
+{
+action_do( glo, gtk_action_get_name( action ) );
+}
+
+static GtkUIManager *manui;
 
 // Create the actions
 void mk_actions( glostru * glo )
@@ -160,3 +165,15 @@ labar = gtk_ui_manager_get_widget( manui, "/MenuBar" );
 return labar;
 }
 
+/** ============================ homebrew toolbar buttons callbacks ======================= */
+
+void restart_call( GtkWidget *widget, glostru * glo )
+{ action_do( glo, "res" ); }
+void run_call( GtkWidget *widget, glostru * glo )
+{ action_do( glo, "run" ); }
+void step_into_call( GtkWidget *widget, glostru * glo )
+{ action_do( glo, "si" ); }
+void step_over_call( GtkWidget *widget, glostru * glo )
+{ action_do( glo, "sv" ); }
+void step_out_call( GtkWidget *widget, glostru * glo )
+{ action_do( glo, "so" ); }

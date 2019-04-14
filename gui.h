@@ -21,19 +21,24 @@
 "              |_|\n" );
 */
 // pango markup pour la marge du disassembly
-#define MARGIN_IP " <span foreground=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
+#define MARGIN_IP " <span color=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
 #define MARGIN_NONE "  "
-#define MARGIN_BK "<span foreground=\"#FF0000\">" UTF8_CIRCLE "</span> "
-#define MARGIN_BKIP "<span foreground=\"#FF0000\">" UTF8_CIRCLE "</span><span foreground=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
+#define MARGIN_BK "<span color=\"#FF0000\">" UTF8_CIRCLE "</span> "
+#define MARGIN_BKIP "<span color=\"#FF0000\">" UTF8_CIRCLE "</span><span foreground=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
 // pango markup pour la marge de memory
-#define MARGIN_SP "<span foreground=\"" SP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
-#define MARGIN_BP "<span foreground=\"" BP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
+#define MARGIN_SP "<span color=\"" SP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
+#define MARGIN_BP "<span color=\"" BP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
 #define MARGIN_NOSP " "
+// pango markup pour les tooltips
+#define HOTKEY "<span color=\"#EE00AA\" font-weight=\"bold\">"
 
 typedef struct
 {
 GtkWidget * wmain;			// main window
 GtkWidget * vmain;			// vertical box
+GtkWidget *   htool;			// horizontal toolbox
+GtkWidget *     mbar;			// horizontal menu
+GtkWidget *     bqui;			// button
 GtkWidget *   vpan;			// vertical paned pair
 GtkWidget *     hpan;			// horizontal paned pair
 GtkWidget *       notl;			// left notebook
@@ -74,14 +79,12 @@ GtkTreeViewColumn *       mdatcol;	// ram data column
 
 transzcript t;
 GtkWidget *     wtran;			// transcript window
-GtkWidget *   mbar;			// horizontal menu
 GtkWidget *   hbut;			// horizontal box
 GtkWidget *     ecmd;			// text entry
 GtkWidget *     btog1;			// button
 GtkWidget *     btog2;			// button
 GtkWidget *     btog3;			// button
 GtkWidget *     btog4;			// button
-GtkWidget *     bqui;			// button
 int         idle_id;			// id pour la fonction idle du timeout
 
 // fenetre annexe pour editeur
@@ -132,7 +135,13 @@ GtkWidget * mk_bars( glostru * glo );
 void mk_the_gui( glostru * glo );
 
 /** widget callbacks ------------------------------*/
-
+// tool buttons
+void restart_call( GtkWidget *widget, glostru * glo );
+void run_call( GtkWidget *widget, glostru * glo );
+void step_into_call( GtkWidget *widget, glostru * glo );
+void step_over_call( GtkWidget *widget, glostru * glo );
+void step_out_call( GtkWidget *widget, glostru * glo );
+// context menus
 void reg_call_copy( GtkWidget *widget, glostru * glo );
 void reg_call_copy_all( GtkWidget *widget, glostru * glo );
 gboolean reg_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
@@ -148,9 +157,10 @@ void ram_call_fmt( GtkWidget *widget, glostru * glo );
 void ram_call_copy( GtkWidget *widget, glostru * glo );
 void ram_call_copy_all( GtkWidget *widget, glostru * glo );
 gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
+// entries
 void ram_adr_call( GtkWidget *widget, glostru * glo );
 void cmd_call( GtkWidget *widget, glostru * glo );
-
+// treeview data callbacks
 void disa_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,

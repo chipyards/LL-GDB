@@ -395,12 +395,54 @@ curwidg = gtk_vbox_new( FALSE, 2 );
 gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
+// boite horizontale
+curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
+gtk_container_set_border_width( GTK_CONTAINER (curwidg), 1);
+gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
+glo->htool = curwidg;
+
 // les actions (bindkeys)
 mk_actions( glo );
 // la barre de menu
 curwidg = mk_mbar( glo );
-gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
 glo->mbar = curwidg;
+
+/* simple boutons */
+curwidg = gtk_button_new();
+g_signal_connect( curwidg, "clicked",
+                  G_CALLBACK( restart_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/restart.png") );
+gtk_widget_set_tooltip_markup( curwidg, "Start or Restart " HOTKEY "Shift-F5</span>");
+
+curwidg = gtk_button_new();
+g_signal_connect( curwidg, "clicked",
+                  G_CALLBACK( run_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/continue_keil.png") );
+gtk_widget_set_tooltip_markup( curwidg, "Run " HOTKEY "F5</span>");
+
+curwidg = gtk_button_new();
+g_signal_connect( curwidg, "clicked",
+                  G_CALLBACK( step_into_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/step_into.png") );
+gtk_widget_set_tooltip_markup( curwidg, "Step Into " HOTKEY "F11</span>");
+
+curwidg = gtk_button_new();
+g_signal_connect( curwidg, "clicked",
+                  G_CALLBACK( step_over_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/step_over.png") );
+gtk_widget_set_tooltip_markup( curwidg, "Step Over " HOTKEY "Shift-F11</span>");
+
+curwidg = gtk_button_new();
+g_signal_connect( curwidg, "clicked",
+                  G_CALLBACK( step_out_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
+gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_file("PNG/step_out.png") );
+gtk_widget_set_tooltip_markup( curwidg, "Step Out " HOTKEY "Ctrl-F11</span>");
 
 // paire verticale "paned"
 curwidg = gtk_vpaned_new ();
@@ -428,7 +470,7 @@ curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notl ), curwidg, gtk_label_new("Registers") );
 #ifdef PRINT_64
-gtk_widget_set_size_request (curwidg, 150, 450);
+gtk_widget_set_size_request (curwidg, 168, 450);
 #else
 gtk_widget_set_size_request (curwidg, 110, 260);
 #endif
@@ -530,13 +572,6 @@ curwidg = gtk_check_button_new_with_label ("raw dump");
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( curwidg ), FALSE );
 glo->btog4 = curwidg;
-
-/* simple bouton */
-curwidg = gtk_button_new_with_label (" Quit ");
-g_signal_connect( curwidg, "clicked",
-                  G_CALLBACK( quit_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
-glo->bqui = curwidg;
 
 gtk_widget_show_all( glo->wmain );
 }
