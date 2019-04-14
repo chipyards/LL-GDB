@@ -249,9 +249,9 @@ switch	( retval )
 	case 8: pos += snprintf( buf, size, "fin report %s", stac.back().nam.c_str() );
 		level = 0;
 		break;
-	case 9: if	( nam.c_str()[0] == '(' )
+	case 9: if	( nam[0] == '(' )
 			pos += snprintf( buf, size, "(%s",  val.c_str() );
-		else	pos += snprintf( buf, size, "stream %c%s", nam.c_str()[0], val.substr(0,72).c_str() );
+		else	pos += snprintf( buf, size, "stream %c%s", nam[0], val.substr(0,72).c_str() );
 		break;
 	}
 return pos;
@@ -345,8 +345,15 @@ switch	( retval )
 			}
 		else if	( ( ss ) && ( stac.back().nam == string("*stopped") ) )
 			{
+			if	( nam == "signal-meaning" )
+				{
+				if	( targ->reason == "signal-received" )
+					{ targ->reason += " : "; targ->reason += val; }
+				}
 			if	( nam == "reason" )
+				{
 				targ->reason = val;
+				}
 			}
 		else if	( ( ss ) && ( stac.back().nam == string("^error") ) )
 			{
@@ -434,17 +441,52 @@ switch	( retval )
 			{
 			targ->job_reset_running(Run);
 			targ->job_reset_running(Continue);
+			if	( ((int)targ->reason.find("egmentation fault")) > 0 )
+				{
+				targ->error_msg = targ->reason;
+				targ->job_set_error( Run );
+				}
+			else if	( ((int)targ->reason.find("nknown signal")) > 0 )
+				{
+				targ->error_msg = targ->reason;
+				#ifdef __amd64
+				targ->error_msg += "\nThis tool is for 64-bit targets only";
+				#else
+				targ->error_msg += "\nThis tool is for 32-bit targets only";
+				#endif
+				targ->job_set_error( Run );
+				}
 			}
 		else if	( ( ss ) && ( stac.back().nam == string("^error") ) )
 			{
 			int ijob = targ->job_running();
 			if	( ijob >= 0 )
 				{
+				if	( ((int)targ->error_msg.find("rror creating process")) > 0 )
+					#ifdef __amd64
+					targ->error_msg += "\nThis tool is for 64-bit targets only";
+					#else
+					targ->error_msg += "\nThis tool is for 32-bit targets only";
+					#endif
 				targ->job_set_error((job_enum)ijob);
 				}
 			}
 		break;
 	case 9: // fin de stream-output
+		if	( nam[0] == '&' )
+			{
+			if	( ((int)val.find("o such file")) > 0 )
+				{
+				targ->job_set_error(File);
+				targ->error_msg = val;
+				}
+			else if	( ((int)val.find("ot in executable")) > 0 )
+				{
+				targ->job_set_error(File);
+				targ->error_msg = val;
+				}
+			printf("%s\n", val.c_str() ); fflush(stdout);
+			}
 		break;
 	}
 return 0;

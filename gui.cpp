@@ -108,23 +108,6 @@ void next_run( glostru * glo )
 {
 if	( glo->targ->job_isanyrunning() )
 	return;
-if	( glo->targ->job_isanyerror() )
-	{
-	if	(
-		( glo->targ->reason == string("exited-normally") ) ||
-		( glo->targ->reason == string("exited") )
-		)
-		{
-		glo->t.printf(": %s\n", glo->targ->reason.c_str() );
-		modpop( "Info", "program exited normally", GTK_WINDOW(glo->wmain) );
-		}
-	else	{
-		glo->t.printf("E %s\n", glo->targ->error_msg.c_str() );
-		modpop( "Error", glo->targ->error_msg.c_str(), GTK_WINDOW(glo->wmain) );
-		}
-	glo->targ->job_status &= (~(ERROR_MASK));
-	return;
-	}
 if	( glo->targ->job_isanyqueued() == 0 )
 	return;
 int ijob = glo->targ->job_nextqueued();
@@ -336,6 +319,28 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			}	// fin de "fin de job"
 		}	// fin de "fin de quelque chose"
 	}	// while child_getc()
+// la fonction glo->mipa->extract() a pu detecter des erreurs, voyons cela :
+if	( glo->targ->job_isanyerror() )
+	{
+	if	(
+		( glo->targ->reason == "exited-normally" ) ||
+		( glo->targ->reason == "exited" )
+		)
+		{
+		glo->t.printf(": %s\n", glo->targ->reason.c_str() );
+		modpop( "Info", "program exited normally", GTK_WINDOW(glo->wmain) );
+		}
+	else	{
+		glo->t.printf("E %s\n", glo->targ->error_msg.c_str() );
+		modpop( "Error", glo->targ->error_msg.c_str(), GTK_WINDOW(glo->wmain) );
+		}
+	if	( ( glo->targ->job_is_in_error(File) ) || ( glo->targ->job_is_in_error(Run) ) )
+		glo->targ->job_status = 0;
+	else	glo->targ->job_status &= (~(ERROR_MASK));
+	}
+// faisons avancer les taches en attente...
+next_run( glo );
+// coloriage indiquant une activite...
 if	( glo->targ->job_isanyrunning()  )
 	{
 	static GdkColor laranja = { 0, 0xFF00, 0xA000, 0x4000 };
@@ -344,10 +349,10 @@ if	( glo->targ->job_isanyrunning()  )
 else	{
 	gtk_widget_modify_base( glo->ecmd, GTK_STATE_NORMAL, NULL );
 	}
-next_run( glo );
 return( -1 );
 }
 
+// callbak de l'entry pour adresse RAM
 void ram_adr_call( GtkWidget *widget, glostru * glo )
 {
 char tbuf[128]; const char * fmt;
@@ -890,9 +895,9 @@ snprintf( tbuf, sizeof(tbuf), "gdb --interpreter=mi %s", glo->targ->main_file_na
 retval = glo->dad->start_child( tbuf );
 if	( retval )
 	glo->t.printf("Error daddy %d\n", retval );
-else	init_step( glo );
-
-// modpop( "test", "before gtk_main", GTK_WINDOW(glo->wmain) );
+else if	( glo->targ->main_file_name.size() > 0 )
+	init_step( glo );
+else	modpop( "Error", "No executable file name", GTK_WINDOW(glo->wmain) );
 
 gtk_main(); // on va rester dans cette fonction jusqu'a ce qu'une callback appelle gtk_main_quit();
 g_source_remove( glo->idle_id );

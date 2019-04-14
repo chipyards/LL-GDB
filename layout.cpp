@@ -437,6 +437,7 @@ g_signal_connect( curwidg, "destroy",
 gtk_window_set_title( GTK_WINDOW(curwidg), "LL-GDB" );
 
 gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 2 );
+gtk_widget_set_size_request( curwidg, 880, 680 );
 glo->wmain = curwidg;
 
 // paire horizontale "paned"
@@ -552,7 +553,7 @@ glo->tlisf = curwidg;
 curwidg = gtk_scrolled_window_new( NULL, NULL );
 gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS );
 gtk_paned_pack2 (GTK_PANED (glo->hpan2), curwidg, TRUE, FALSE );
-gtk_widget_set_size_request (curwidg, 480, 400);
+// gtk_widget_set_size_request (curwidg, 480, 400);
 glo->scwl = curwidg;
 
 // disassembly treeview
@@ -567,7 +568,7 @@ glo->mdisa = mk_disa_menu( glo );
 // Le transcript dans la moitie inferieure de la paned verticale
 curwidg = glo->t.create();
 gtk_paned_pack2( GTK_PANED(glo->vpan), curwidg, FALSE, TRUE );
-gtk_widget_set_size_request( curwidg, 700, 100 );
+gtk_widget_set_size_request( curwidg, 600, 100 );
 glo->wtran = curwidg;
 
 // fin de vpan

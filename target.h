@@ -246,6 +246,9 @@ bool job_is_queued( job_enum job ) {
 bool job_is_running( job_enum job ) {
 	return ( ( job_status & ( (long long)RUNNING_BIT << (((unsigned int)job)<<2) ) ) != 0 );
 	}
+bool job_is_in_error( job_enum job ) {
+	return ( ( job_status & ( (long long)ERROR_BIT << (((unsigned int)job)<<2) ) ) != 0 );
+	}
 void job_set_running( job_enum job ) {
 	job_status &= (~( (long long)CLEAR_BITS << (((unsigned int)job)<<2) ));
 	job_status |= ( (long long)RUNNING_BIT << (((unsigned int)job)<<2) );
