@@ -56,7 +56,8 @@ GtkListStore *            tmodr;	// list model
 GtkWidget *               mreg;		// context menu appele par une call back de la treeview
 GtkWidget *                 itrg;	// menu item for register
 unsigned int              reg_sel_i;	// index de la ligne courante
-GtkWidget *           scwf;		// scrollable window for flags (on mettra treeview direct en fait)
+GtkWidget *           tlisf;		// tree view used as list view
+GtkListStore *          tmodf;		// list model
 GtkWidget *         scwl;		// scrollable window for disassembly
 GtkWidget *           tlisl;		// tree view used as list view
 GtkListStore *          tmodl;		// list model
@@ -167,17 +168,22 @@ gboolean ram_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * gl
 void ram_adr_call( GtkWidget *widget, glostru * glo );
 void cmd_call( GtkWidget *widget, glostru * glo );
 // treeview data callbacks
-void disa_data_call( GtkTreeViewColumn * tree_column,
-                     GtkCellRenderer   * rendy,
-                     GtkTreeModel      * tree_model,
-                     GtkTreeIter       * iter,
-                     glostru *         glo );
 void regname_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,
                      GtkTreeIter       * iter,
                      glostru *         glo );
 void regval_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo );
+void disa_data_call( GtkTreeViewColumn * tree_column,
+                     GtkCellRenderer   * rendy,
+                     GtkTreeModel      * tree_model,
+                     GtkTreeIter       * iter,
+                     glostru *         glo );
+void flag_data_call( GtkTreeViewColumn * tree_column,
                      GtkCellRenderer   * rendy,
                      GtkTreeModel      * tree_model,
                      GtkTreeIter       * iter,

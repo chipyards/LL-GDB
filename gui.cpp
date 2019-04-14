@@ -307,6 +307,7 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 				     break;
 				case RegVal:	gtk_widget_queue_draw( glo->tlisr );
 						update_disass( glo ); gtk_widget_queue_draw( glo->tlisl );
+								      gtk_widget_queue_draw( glo->tlisf );
 				     break;
 				case Disass:	update_disass( glo ); gtk_widget_queue_draw( glo->tlisl );
 				     break;
@@ -672,6 +673,33 @@ g_object_set( rendy, "text", text, NULL );
 // la couleur ne revient pas toute seule au defaut (blanc)
 g_object_set( rendy, "cell-background", chng?CHREG_COLOR:"#FFFFFF", "cell-background-set", TRUE, NULL );
 #endif
+}
+
+void flag_data_call( GtkTreeViewColumn * tree_column,	// page 3-16 Vol. 1
+                     GtkCellRenderer   * rendy,		// CF (bit 0) Carry flag
+                     GtkTreeModel      * tree_model,	// PF (bit 2) Parity flag
+                     GtkTreeIter       * iter,		// AF (bit 4) Auxiliary Carry flag
+                     glostru *         glo )		// ZF (bit 6) Zero flag
+{							// SF (bit 7) Sign flag
+unsigned int i, reg, f=0;					// OF (bit 11) Overflow flag
+char text[16]; const char * fmt;			// DF (bit 10) Direction lag
+// recuperer notre index dans la colonne 0 du model
+gtk_tree_model_get( tree_model, iter, 0, &i, -1 );
+// elaborer la donnee
+reg = (unsigned int)glo->targ->regs.get_eflags()->val;
+switch	( i )
+	{
+	case 0 : fmt = "CF %c"; f = (reg & (1<<0))?'1':'0'; break;
+	case 1 : fmt = "ZF %c"; f = (reg & (1<<6))?'1':'0'; break;
+	case 2 : fmt = "SF %c"; f = (reg & (1<<7))?'1':'0'; break;
+	case 3 : fmt = "OF %c"; f = (reg & (1<<11))?'1':'0'; break;
+	case 4 : fmt = "PF %c"; f = (reg & (1<<2))?'1':'0'; break;
+	case 5 : fmt = "AF %c"; f = (reg & (1<<4))?'1':'0'; break;
+	case 6 : fmt = "DF %c"; f = (reg & (1<<10))?'1':'0'; break;
+	default : fmt = "?";
+	}
+snprintf( text, sizeof(text), fmt, f );
+g_object_set( rendy, "text", text, NULL );
 }
 
 // Autre style : 1 seule callback pour toutes les colonnes

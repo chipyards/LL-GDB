@@ -231,6 +231,49 @@ g_signal_connect( curwidg, "button-press-event", (GCallback)reg_right_call, (gpo
 return(curwidg);
 }
 
+// Create the flag view
+GtkWidget * mk_flag_view( glostru * glo )
+{
+GtkWidget *curwidg;
+GtkCellRenderer *renderer;
+GtkTreeViewColumn *curcol;
+GtkTreeSelection* cursel;
+
+// le modele : minimal, 1 colonne de type int
+glo->tmodf = gtk_list_store_new( 1, G_TYPE_INT );
+list_store_resize( glo->tmodf, 7 );
+
+// la vue
+curwidg = gtk_tree_view_new();
+
+// l'unique colonne valeur, avec data_func
+renderer = gtk_cell_renderer_text_new();
+curcol = gtk_tree_view_column_new();
+
+gtk_tree_view_column_set_title( curcol, " CC " );
+gtk_tree_view_column_pack_start( curcol, renderer, TRUE );
+gtk_tree_view_column_set_cell_data_func( curcol, renderer,
+                                         (GtkTreeCellDataFunc)flag_data_call,
+                                         (gpointer)glo, NULL );
+gtk_tree_view_column_set_resizable( curcol, TRUE );
+gtk_tree_view_append_column( (GtkTreeView*)curwidg, curcol );
+
+// configurer la selection
+cursel = gtk_tree_view_get_selection( (GtkTreeView*)curwidg );
+gtk_tree_selection_set_mode( cursel, GTK_SELECTION_NONE );
+
+// connecter modele
+gtk_tree_view_set_model( (GtkTreeView*)curwidg, GTK_TREE_MODEL( glo->tmodf ) );
+
+// Change default font throughout the widget
+PangoFontDescription * font_desc;
+font_desc = pango_font_description_from_string("Monospace 10");
+gtk_widget_modify_font( curwidg, font_desc );
+pango_font_description_free( font_desc );
+
+return(curwidg);
+}
+
 // Create the disassembly view
 GtkWidget * mk_disa_view( glostru * glo )
 {
@@ -500,10 +543,10 @@ glo->tlisr = curwidg;
 // menu contextuel (sera appele par une callback de la treeview)
 glo->mreg = mk_reg_menu( glo );
 
-curwidg = gtk_scrolled_window_new( NULL, NULL );
-gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( curwidg), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC );
+// flag view
+curwidg = mk_flag_view( glo );
 gtk_notebook_append_page( GTK_NOTEBOOK( glo->notrf ), curwidg, gtk_label_new("Flags") );
-glo->scwf = curwidg;
+glo->tlisf = curwidg;
 
 // disassembly scroll
 curwidg = gtk_scrolled_window_new( NULL, NULL );

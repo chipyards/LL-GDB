@@ -16,8 +16,9 @@ unsigned int option_qregs;
 unsigned int isp;
 unsigned int ibp;
 unsigned int iip;
+unsigned int iflags;
 // constructeur
-regbank() : isp(0), ibp(0), iip(0) { regs.push_back( registro( string( "invalid") ) ); };
+regbank() : isp(0), ibp(0), iip(0), iflags(0) { regs.push_back( registro( string( "invalid") ) ); };
 // methodes
 void start_reg_names() { regs.clear(); };
 void add_reg_name( string val ) {
@@ -29,6 +30,8 @@ void add_reg_name( string val ) {
 			ibp = regs.size();
 		else if	( ( val == string("eip") ) || ( val == string("rip") ) )
 			iip = regs.size();
+		else if	(   val == string("eflags") )
+			iflags = regs.size();
 		regs.push_back( registro( val ) );
 		}
 	};
@@ -42,6 +45,7 @@ void set_reg( unsigned int pos, unsigned long long newval ) {
 registro * get_rip() { return &(regs[iip]); };
 registro * get_rsp() { return &(regs[isp]); };
 registro * get_rbp() { return &(regs[ibp]); };
+registro * get_eflags() { return &(regs[iflags]); };
 void reg_all2string( string * s );
 };
 
