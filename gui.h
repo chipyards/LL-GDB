@@ -25,12 +25,20 @@
 #define MARGIN_NONE "  "
 #define MARGIN_BK "<span color=\"#FF0000\">" UTF8_CIRCLE "</span> "
 #define MARGIN_BKIP "<span color=\"#FF0000\">" UTF8_CIRCLE "</span><span foreground=\"" IP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
+// pango markup pour le disassembly
+#define CSOURCE_COLOR	"#20A020"
+#define ADDR_COLOR	"#0050D0"
+#define BIN_COLOR	"#D00000"
+#define CSOURCE "<span color=\"" CSOURCE_COLOR "\">"
+#define ASMADDR "<span color=\"" ADDR_COLOR "\">"
+#define BINCODE "<span color=\"" BIN_COLOR "\">"
 // pango markup pour la marge de memory
 #define MARGIN_SP "<span color=\"" SP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
 #define MARGIN_BP "<span color=\"" BP_COLOR2 "\">" UTF8_TRIANGLE "</span>"
 #define MARGIN_NOSP " "
 // pango markup pour les tooltips
-#define HOTKEY "<span color=\"#EE00AA\" font-weight=\"bold\">"
+#define HOTKEY_COLOR	"#EE00AA"
+#define HOTKEY "<span color=\"" HOTKEY_COLOR "\" font-weight=\"bold\">"
 
 typedef struct
 {

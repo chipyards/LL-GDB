@@ -50,6 +50,28 @@ if	( depth == 1 )	return indices[0];
 else			return -depth;
 }
 
+// copie le texte src en en le preparant pour le markup i.e. remplacer
+//	& par &amp;
+//	< par &lt;
+int markup_filter( char * tbuf, unsigned int size, const char * src )
+{
+unsigned int i = 0, j = 0; char c;
+while	( j < ( size - 5 ) )
+	{
+	c = src[i++];
+	if	( c == '<' )
+		{ tbuf[j++] = '&'; tbuf[j++] = 'l'; tbuf[j++] = 't'; tbuf[j++] = ';'; }
+	else	tbuf[j++] = c;
+	if	( c == '&' )
+		{ tbuf[j++] = 'a'; tbuf[j++] = 'm'; tbuf[j++] = 'p'; tbuf[j++] = ';'; }
+	if	( c == 0 )
+		break;
+	}
+tbuf[size-1] = 0;
+return (j)?(j-1):0;
+}
+
+
 /** ============================ action functions ======================= */
 
 void init_step( glostru * glo );
@@ -662,7 +684,7 @@ void disa_data_call( GtkTreeViewColumn * tree_column,
                      GtkTreeIter       * iter,
                      glostru *         glo )
 {
-unsigned int i;
+unsigned int i, pos;
 int ref;
 char text[128];
 // recuperer notre index dans la colonne 0 du model
@@ -676,12 +698,16 @@ if	( ref < 0 )
 	unsigned int ifil = listing::decode_file_index(ref);
 	if	( tree_column == glo->adrcol )
 		{
-		snprintf( text, sizeof(text), "  %4d", ilin );
-		g_object_set( rendy, "text", text, NULL );
+		snprintf( text, sizeof(text), CSOURCE "  %4d</span>", ilin );
+		g_object_set( rendy, "markup", text, NULL );
 		}
 	else if	( tree_column == glo->asmcol )
 		{
-		g_object_set( rendy, "text", glo->targ->get_src_line( ifil, ilin ), NULL );
+		pos = snprintf( text, sizeof(text), CSOURCE );
+		pos += markup_filter( text+pos, sizeof(text)-pos, glo->targ->get_src_line( ifil, ilin ) );
+		if	( sizeof(text) > pos )
+			snprintf( text+pos, sizeof(text)-pos, "</span>" );
+		g_object_set( rendy, "markup", text, NULL );
 		}
 	else if	( tree_column == glo->bincol )
 		{
@@ -697,13 +723,13 @@ else	{		// ligne asm
 		if	( adr == glo->targ->get_ip() )
 			{
 			if	( glo->targ->is_break( adr ) )
-				fmt = MARGIN_BKIP OPT_FMT;
-			else	fmt = MARGIN_IP OPT_FMT;
+				fmt = MARGIN_BKIP ASMADDR OPT_FMT "</span>";
+			else	fmt = MARGIN_IP ASMADDR OPT_FMT "</span>";
 			}
 		else	{
 			if	( glo->targ->is_break( adr ) )
-				fmt = MARGIN_BK OPT_FMT;
-			else	fmt = MARGIN_NONE OPT_FMT;
+				fmt = MARGIN_BK ASMADDR OPT_FMT "</span>";
+			else	fmt = MARGIN_NONE ASMADDR OPT_FMT "</span>";
 			}
 		snprintf( text, sizeof(text), fmt, (opt_type)adr );
 		g_object_set( rendy, "markup", text, NULL );
@@ -714,8 +740,11 @@ else	{		// ligne asm
 		}
 	else if	( ( glo->targ->option_binvis ) && ( tree_column == glo->bincol ) )
 		{
-		daline->bin2txt( text, sizeof(text) );
-		g_object_set( rendy, "text", text, NULL );
+		pos = snprintf( text, sizeof(text), BINCODE );
+		pos += daline->bin2txt( text+pos, sizeof(text)-pos );
+		if	( sizeof(text) > pos )
+			snprintf( text+pos, sizeof(text)-pos, "</span>" );
+		g_object_set( rendy, "markup", text, NULL );
 		}
 	}
 }
