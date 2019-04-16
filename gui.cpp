@@ -19,6 +19,7 @@ using namespace std;
 #include "target.h"
 #include "mi_parse.h"
 
+#include "version.h"
 #include "arch_type.h"
 #include "gui.h"
 
@@ -872,6 +873,11 @@ gtk_init(&argc,&argv);
 // main window layout
 mk_the_gui( glo );
 global_main_window = GTK_WINDOW(glo->wmain);
+#ifdef __amd64
+gtk_window_set_title( GTK_WINDOW(glo->wmain), "LL-GDB " LL_VERSION " 64 bits" );
+#else
+gtk_window_set_title( GTK_WINDOW(glo->wmain), "LL-GDB " LL_VERSION " 32 bits" );
+#endif
 
 // etat initial des toggles et radio-buttons
 gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(glo->itram32), TRUE );	// defaut

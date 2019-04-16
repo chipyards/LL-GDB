@@ -434,8 +434,6 @@ g_signal_connect( curwidg, "delete_event",
 g_signal_connect( curwidg, "destroy",
 		  G_CALLBACK( gtk_main_quit ), NULL );
 
-gtk_window_set_title( GTK_WINDOW(curwidg), "LL-GDB" );
-
 gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 2 );
 gtk_widget_set_size_request( curwidg, 880, 680 );
 glo->wmain = curwidg;
