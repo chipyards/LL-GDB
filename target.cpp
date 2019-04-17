@@ -15,7 +15,26 @@ int target::fill_listing( unsigned int ilist, unsigned long long adr )
 {
 if	( ilist >= liststock.size() )
 	return -1;
+// premiere etape : essayer de remonter l'adresse de depart autant que possible
+printf( "avant : " OPT_FMT "\n", (opt_type)adr ); fflush(stdout);
 unsigned int ia, delta;
+unsigned long long prevadr;
+map<unsigned long long, unsigned int>::iterator asmiter = asmmap.find( adr );
+do	{
+	--asmiter;	// remonter l'iterateur
+	prevadr = asmiter->first;
+	ia = asmiter->second;
+	if	( ( ia == 0 ) || ( ia >= asmstock.size() ) )
+		break;
+	// verification de continuite de la sequence
+	delta = asmstock[ia].qbytes;
+	if	( ( prevadr + delta ) != adr )
+		break;
+	// ici c'est ok
+	adr = prevadr;
+	} while ( ia );
+printf( "apres : " OPT_FMT "\n", (opt_type)adr ); fflush(stdout);
+// deuxieme étape : creer le listing from scratch
 int src0, srci;
 asmline * daline;
 listing * curlist = &(liststock[ilist]);
@@ -25,6 +44,8 @@ while	( asmmap.count(adr) )
 	{
 	// lire la ligne desassemblee
 	ia = asmmap[adr];
+	if	( ( ia == 0 ) || ( ia >= asmstock.size() ) )
+		break;
 	daline = &(asmstock[ia]);
 	delta = daline->qbytes;
 	if	( delta == 0 )
@@ -48,6 +69,7 @@ curlist->adr1 = adr;
 return 0;
 }
 
+/*
 // retourne index du listing ou -1 si echec
 int target::add_listing( unsigned long long adr )		// not tested
 {
@@ -59,7 +81,7 @@ liststock.push_back( newlist );
 unsigned int ilist = liststock.size() - 1;
 fill_listing( ilist, adr );
 return (int)ilist;
-}
+} */
 
 void regbank::reg_all2string( string * s )
 {
@@ -326,3 +348,15 @@ while	( ib < MAXOPBYTES )
 	}
 qbytes = ib;
 }
+
+/* verifier que les adresses sont triees dans la map
+void target::asmmap_dump() {
+const char * fmt = OPT_FMT "\n";
+//map<unsigned long long, unsigned int>::iterator itou = asmmap.begin();
+//while	( itou != asmmap.end() )
+//	printf( fmt, (opt_type)(itou++)->first );
+map<unsigned long long, unsigned int>::iterator itou = asmmap.end();
+while	( itou != asmmap.begin() )
+	printf( fmt, (opt_type)(--itou)->first );
+fflush(stdout);
+}*/

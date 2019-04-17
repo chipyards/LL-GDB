@@ -176,7 +176,7 @@ void asm_init() {
 	liststock.push_back( badlist );
 	}
 int fill_listing( unsigned int ilist, unsigned long long adr );
-int add_listing( unsigned long long adr );
+// int add_listing( unsigned long long adr );
 int get_disa_ref( unsigned int ilist, unsigned int i ) { // retourne la ref cherchee ou 0 si echec
 	listing * list;					 // (0 pointe sur ligne asm "disassembly not available")
 	// recuperer le listing selon ilist
@@ -315,5 +315,6 @@ void job_dump() {
 		}
 	printf("\n"); fflush(stdout);
 	}
+void asmmap_dump();
 };
 

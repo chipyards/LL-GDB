@@ -13,6 +13,8 @@ using namespace std;
 
 #include <windows.h>
 
+#include "arch_type.h"
+
 #include "modpop2.h"
 #include "transcript.h"
 #include "spawn_w.h"
@@ -20,7 +22,6 @@ using namespace std;
 #include "mi_parse.h"
 
 #include "version.h"
-#include "arch_type.h"
 #include "gui.h"
 
 /** ============================ list store utilities ======================= */
@@ -137,7 +138,17 @@ some_stats( glo );
 
 void expd( glostru * glo )
 {
-gasp("GAAAASp");
+// gasp("GAAAASp");
+unsigned long long adr = glo->targ->get_ip();
+map<unsigned long long, unsigned int>::iterator itou = glo->targ->asmmap.find( adr );
+--itou;
+unsigned long long prevadr = itou->first;
+unsigned int iasm = itou->second;
+glo->t.printf( OPT_FMT "\n", (opt_type)prevadr );
+unsigned long long verifadr = glo->targ->asmstock[iasm].adr + glo->targ->asmstock[iasm].qbytes;
+if	( verifadr == adr )
+	glo->t.printf("Ok !\n");
+else	glo->t.printf("Sorry\n");
 }
 
 // fonction a appeler chaque fois que ip a change

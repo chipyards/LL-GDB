@@ -41,14 +41,14 @@ INCS= -mms-bitfields -Wno-deprecated-declarations\
 
 # linkage
 $(EXE) : $(OBJS)
-	g++ -o $(EXE) $(OBJS) $(LIBS)
+	g++ -o $(EXE) -s $(OBJS) $(LIBS)
 
 # compilage
 .c.o :
-	gcc -Wall $(INCS) -c $<
+	gcc -Wall -O2 $(INCS) -c $<
 
 .cpp.o :
-	g++ -Wall $(INCS) -c $<
+	g++ -Wall -O2 $(INCS) -c $<
 # other
 
 clean :
