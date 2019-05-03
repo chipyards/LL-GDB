@@ -506,6 +506,19 @@ curpix = gdk_pixbuf_new_from_inline( -1, step_out, FALSE, NULL );
 gtk_button_set_image( (GtkButton *)curwidg, gtk_image_new_from_pixbuf( curpix ) );
 gtk_widget_set_tooltip_markup( curwidg, "Step Out " HOTKEY "Ctrl-F11</span>");
 
+// text entry for target program name
+curwidg = gtk_entry_new();
+gtk_entry_set_editable( GTK_ENTRY(curwidg), FALSE );
+gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
+gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
+glo->enam = curwidg;
+
+// animated button (hopefully)
+curwidg = gtk_spinner_new();
+gtk_box_pack_start( GTK_BOX( glo->htool ), curwidg, FALSE, FALSE, 0 );
+glo->bani = curwidg;
+gtk_widget_set_tooltip_markup( curwidg, "Program running... (" HOTKEY "Alt F4</span> to kill it)");
+
 // paire verticale "paned"
 // en haut registres et disassembly, en bas transcript
 curwidg = gtk_vpaned_new ();

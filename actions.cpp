@@ -61,7 +61,10 @@ switch	( aname[0] )
 	case 'r' :			// run
 		switch	( aname[1] )
 			{
-			case 'e' : queue_cmd( glo, "-exec-run --start", Run );		break;
+			case 'e' : if	( glo->option_manual_start )
+					queue_cmd( glo, "-exec-run", Run );
+				   else	queue_cmd( glo, "-exec-run --start", Run );
+												break;
 			case 'u' : queue_cmd( glo, "-exec-continue", Continue );		break;
 			} get++; break;
 	case 's' :			// steps

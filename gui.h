@@ -47,6 +47,8 @@ GtkWidget * hpan;			// horizontal paned pair
 GtkWidget *   vleft;			// vertical box
 GtkWidget *     htool;			// horizontal toolbox
 GtkWidget *       mbar;			// window menu (file etc...)
+GtkWidget *       bani;			// spinner showing running state
+GtkWidget *       enam;			// text entry for target program name
 GtkWidget *     vpan;			// vertical paned pair
 GtkWidget *       hpan2;		// second horizontal paned pair
 GtkWidget *         notrf;		// notebook reg/flags
@@ -116,6 +118,7 @@ int option_flavor;		// 0 = AT&T, 1 = Intel
 unsigned int option_ramblock;	// number of bytes for RAM read
 unsigned int option_disablock;	// number of bytes for disassembly
 int option_toggles;		// etat initial des check_buttons (1bit per toggle button)
+int option_manual_start;	// breakpoints initiaux a mettre a la main
 
 } glostru;
 

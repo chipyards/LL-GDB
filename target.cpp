@@ -16,7 +16,7 @@ int target::fill_listing( unsigned int ilist, unsigned long long adr )
 if	( ilist >= liststock.size() )
 	return -1;
 // premiere etape : essayer de remonter l'adresse de depart autant que possible
-printf( "avant : " OPT_FMT "\n", (opt_type)adr ); fflush(stdout);
+// printf( "avant : " OPT_FMT "\n", (opt_type)adr ); fflush(stdout);
 unsigned int ia, delta;
 unsigned long long prevadr;
 map<unsigned long long, unsigned int>::iterator asmiter = asmmap.find( adr );
@@ -33,7 +33,7 @@ do	{
 	// ici c'est ok
 	adr = prevadr;
 	} while ( ia );
-printf( "apres : " OPT_FMT "\n", (opt_type)adr ); fflush(stdout);
+// printf( "apres : " OPT_FMT "\n", (opt_type)adr ); fflush(stdout);
 // deuxieme étape : creer le listing from scratch
 int src0, srci;
 asmline * daline;

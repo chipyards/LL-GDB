@@ -331,6 +331,23 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 			}	// fin de "fin de job"
 		}	// fin de "fin de quelque chose"
 	}	// while child_getc()
+// "spinner" indiquant une activite...
+// on met cette action avant un eventuel appel a modpop, car sinon celui-ci pourrait bloquer la mise a jour
+// de l'indicateur d'activité
+if	( glo->targ->job_isanyrunning()  )
+	{
+	static GdkColor laranja = { 0, 0xFF00, 0xA000, 0x4000 };
+	gtk_widget_show( glo->bani );
+	gtk_spinner_start( (GtkSpinner *)glo->bani );
+	// ici on fait la difference entre les jobs de dialogue avec gdb et le running de la target
+	if	( glo->targ->job_is_running(Run) || glo->targ->job_is_running(Continue) )
+		gtk_widget_modify_base( glo->enam, GTK_STATE_NORMAL, &laranja );
+	}
+else	{
+	gtk_spinner_stop( (GtkSpinner *)glo->bani );
+	gtk_widget_hide( glo->bani );
+	gtk_widget_modify_base( glo->enam, GTK_STATE_NORMAL, NULL );
+	}
 // la fonction glo->mipa->extract() a pu detecter des erreurs, voyons cela :
 if	( glo->targ->job_isanyerror() )
 	{
@@ -352,15 +369,6 @@ if	( glo->targ->job_isanyerror() )
 	}
 // faisons avancer les taches en attente...
 next_run( glo );
-// coloriage indiquant une activite...
-if	( glo->targ->job_isanyrunning()  )
-	{
-	static GdkColor laranja = { 0, 0xFF00, 0xA000, 0x4000 };
-	gtk_widget_modify_base( glo->ecmd, GTK_STATE_NORMAL, &laranja );
-	}
-else	{
-	gtk_widget_modify_base( glo->ecmd, GTK_STATE_NORMAL, NULL );
-	}
 return( -1 );
 }
 
@@ -863,6 +871,7 @@ glo->option_ramblock = 128;
 #endif
 glo->option_disablock = 256;
 glo->option_toggles = 0;
+glo->option_manual_start = 0;
 
 for	( int iopt = 1; iopt < argc; ++iopt )
 	{
@@ -873,6 +882,8 @@ for	( int iopt = 1; iopt < argc; ++iopt )
 			case 't' : glo->option_toggles = atoi( argv[iopt]+2 );
 				break;
 			case 'c' : glo->option_child_console = atoi( argv[iopt]+2 );
+				break;
+			case 'm' : glo->option_manual_start = 1;
 				break;
 			}
 		}
@@ -902,6 +913,7 @@ if	( glo->option_toggles & 4 )
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( glo->btog3 ), TRUE );
 if	( glo->option_toggles & 8 )
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( glo->btog4 ), TRUE );
+gtk_widget_hide( glo->bani );
 
 // gtk_timeout_add( 31, (GtkFunction)(idle_call), (gpointer)glo );
 glo->idle_id = g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
@@ -911,10 +923,14 @@ char tbuf[128]; int retval;
 snprintf( tbuf, sizeof(tbuf), "gdb --interpreter=mi %s", glo->targ->main_file_name.c_str() );
 retval = glo->dad->start_child( tbuf );
 if	( retval )
-	glo->t.printf("Error daddy %d\n", retval );
-else if	( glo->targ->main_file_name.size() > 0 )
-	init_step( glo );
-else	modpop( "Error", "No executable file name", GTK_WINDOW(glo->wmain) );
+	gasp("Error daddy %d\n", retval );
+if	( glo->option_manual_start == 0 )
+	{
+	if	( glo->targ->main_file_name.size() > 0 )
+		init_step( glo );
+	else	modpop( "Error", "No executable file name", GTK_WINDOW(glo->wmain) );
+	}
+gtk_entry_set_text( GTK_ENTRY(glo->enam), glo->targ->main_file_name.c_str() );
 
 gtk_main(); // on va rester dans cette fonction jusqu'a ce qu'une callback appelle gtk_main_quit();
 g_source_remove( glo->idle_id );
