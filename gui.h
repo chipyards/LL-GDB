@@ -111,7 +111,7 @@ target * targ;
 
 unsigned int ilist;		// indice du listing courant
 unsigned int ip_in_list;	// indice de la ligne de eip dans le listing courant
-
+long long disa_adr;		// adresse pour desassemblage ( 0 <==> ip )
 int option_child_console;	// pour debug d'un prog qui utilise stdout et/ou stdin
 int option_flavor;		// 0 = AT&T, 1 = Intel
 // int option_binvis;		// (cette option est dans la classe target)

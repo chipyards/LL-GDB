@@ -15,7 +15,7 @@ using namespace std;
 
 #include "arch_type.h"
 
-#include "modpop2.h"
+#include "modpop3.h"
 #include "transcript.h"
 #include "spawn_w.h"
 #include "target.h"
@@ -76,8 +76,8 @@ return (j)?(j-1):0;
 
 /** ============================ action functions ======================= */
 
-void init_step( glostru * glo );
-void update_disass( glostru * glo );
+static void init_step( glostru * glo );
+static void update_disass( glostru * glo );
 
 void some_stats( glostru * glo )
 {
@@ -125,37 +125,43 @@ glo->dad->send_cmd( "\n" );
 
 void expa( glostru * glo )
 {
+char buf[256];
+modpop_entry( "LL-GDB parameter", "Address for Disassembly", buf, sizeof(buf), GTK_WINDOW(glo->wmain) );
+if	( buf[0] == 0 )
+	return;
+// glo->t.printf( "-->%s<--\n", buf );
+unsigned long long adr;
+adr = strtoull( buf, NULL, 16 );	// accepte 0x ou hex brut
+if	( adr == 0 )
+	return;
+glo->disa_adr = adr;
 update_disass( glo );
-list_store_resize( glo->tmodm, glo->targ->get_ram_qlines(0) );	// hum ce n'est pas l'endroit ou faire ça, trop frequent
-gtk_widget_queue_draw( glo->wmain );
-glo->targ->job_status &= (~RUNNING_MASK);
 }
 
 void expb( glostru * glo )
 {
 some_stats( glo );
+glo->targ->job_status &= (~RUNNING_MASK);
 }
 
 void expd( glostru * glo )
 {
 // gasp("GAAAASp");
-unsigned long long adr = glo->targ->get_ip();
-map<unsigned long long, unsigned int>::iterator itou = glo->targ->asmmap.find( adr );
---itou;
-unsigned long long prevadr = itou->first;
-unsigned int iasm = itou->second;
-glo->t.printf( OPT_FMT "\n", (opt_type)prevadr );
-unsigned long long verifadr = glo->targ->asmstock[iasm].adr + glo->targ->asmstock[iasm].qbytes;
-if	( verifadr == adr )
-	glo->t.printf("Ok !\n");
-else	glo->t.printf("Sorry\n");
 }
 
-// fonction a appeler chaque fois que ip a change
-void update_disass( glostru * glo )
+// fonction a appeler chaque fois que ip a change (avec adr = 0)
+// avec adr != 0 cette fonction desassemble a l'adr demandee
+static void update_disass( glostru * glo )
 {
+int ip_asm_line;
 // notre ip est-il deja desassemble ? cherchons son index dans asmstock
-int ip_asm_line = glo->targ->get_ip_asm_line();
+if	( glo->disa_adr == 0 )
+	ip_asm_line = glo->targ->get_ip_asm_line();
+else	{	// dans ce cas exceptionnel on ne tient pas compte de ip
+	if	( glo->targ->asmmap.count(glo->disa_adr) )
+		ip_asm_line = (int)glo->targ->asmmap[glo->disa_adr];
+	else	ip_asm_line = -1;
+	}
 if	( ip_asm_line >= 0 )
 	{
 	// glo->t.printf("line %d in asmstock\n", ip_asm_line );
@@ -190,8 +196,10 @@ if	( ip_asm_line >= 0 )
 		}
 	}
 else	{ // NON allons desassembler si possible
-	unsigned long long adr;
-	adr = glo->targ->get_ip();
+	long long adr;
+	if	( glo->disa_adr == 0 )
+		adr = glo->targ->get_ip();
+	else	adr = glo->disa_adr;
 	if	( ( adr ) && ( !glo->targ->job_is_queued(Disass) ) )
 		{
 		char tbuf[128];	// this fmt var below is to avoid bogus MinGW warnings about %llX
@@ -203,7 +211,7 @@ else	{ // NON allons desassembler si possible
 }
 
 // cette fonction pretend assurer les etapes de demarrage
-void init_step( glostru *glo )
+static void init_step( glostru *glo )
 {
 queue_cmd( glo, "-data-list-register-names", RegNames );
 if	( glo->option_child_console )
@@ -301,10 +309,11 @@ while	( ( d = glo->dad->child_getc() ) >= 0 )
 				case RegNames:	gtk_widget_queue_draw( glo->tlisr );
 				     break;
 				case RegVal:	gtk_widget_queue_draw( glo->tlisr );
-						update_disass( glo ); gtk_widget_queue_draw( glo->tlisl );
-								      gtk_widget_queue_draw( glo->tlisf );
+						glo->disa_adr = 0;
+						update_disass( glo );	gtk_widget_queue_draw( glo->tlisl );
+									gtk_widget_queue_draw( glo->tlisf );
 				     break;
-				case Disass:	update_disass( glo ); gtk_widget_queue_draw( glo->tlisl );
+				case Disass:	update_disass( glo );	gtk_widget_queue_draw( glo->tlisl );
 				     break;
 				case RAMRead:	gtk_widget_queue_draw( glo->tlism );
 						list_store_resize( glo->tmodm, glo->targ->get_ram_qlines(0) );
@@ -492,7 +501,7 @@ else	{
 	gtk_tree_view_column_set_visible( glo->bincol, FALSE );
 	}
 glo->targ->asm_init();	// effacer tout le disassembly car mi_parse tient compte de option_binvis
-update_disass( glo );	// ce n'est pas seulement la visibilite des colonnes qui change
+update_disass( glo );// ce n'est pas seulement la visibilite des colonnes qui change
 }
 
 void disa_call_copy_adr( GtkWidget *widget, glostru * glo )
@@ -525,7 +534,7 @@ else	{		// ligne asm
 		int pos = daline->bin2txt( text, sizeof(text) );
 		snprintf( text+pos, sizeof(text)-pos, daline->asmsrc.c_str() );
 		if	( sizeof(text) > ( pos + daline->asmsrc.size() + 1 ) )
-			memcpy ( text+pos, daline->asmsrc.c_str(), daline->asmsrc.size()+1 );
+			memcpy( text+pos, daline->asmsrc.c_str(), daline->asmsrc.size()+1 );
 		gtk_clipboard_set_text( myclip, text, -1);
 		}
 	else	gtk_clipboard_set_text( myclip, daline->asmsrc.c_str(), -1);
@@ -850,6 +859,7 @@ glo->dad = &ledad;
 glo->mipa = &lemipa;
 glo->targ = &latarget;
 glo->ilist = 0;
+glo->disa_adr = 0;
 
 setlocale( LC_ALL, "C" );	// question de survie
 

@@ -7,7 +7,7 @@ using namespace std;
 
 #include <windows.h>
 
-#include "modpop2.h"
+#include "modpop3.h"
 #include "transcript.h"
 #include "spawn_w.h"
 #include "target.h"
@@ -41,7 +41,7 @@ static GtkActionEntry ui_entries[] = {
   { "so", 		NULL, "Step Out",		"<control>F11",	NULL, G_CALLBACK(action_call) },
   { "bmain", 		NULL, "Breakpoint to main",	"F9",		NULL, G_CALLBACK(action_call) },
   { "bentry",	 	NULL, "Breakpoint to entry",	"<control>F9",	NULL, G_CALLBACK(action_call) },
-  { "expa",	 	NULL, "Exp A",			"<control>A",	NULL, G_CALLBACK(action_call) },
+  { "expa",	 	NULL, "Disassemby at address",	"<control>A",	NULL, G_CALLBACK(action_call) },
   { "expb",	 	NULL, "Exp B",			"<control>B",	NULL, G_CALLBACK(action_call) },
   { "expd",	 	NULL, "Exp D",			"<control>D",	NULL, G_CALLBACK(action_call) },
 };
