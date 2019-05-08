@@ -402,7 +402,7 @@ switch	( retval )
 			)
 			{
 			if	( targ->asmmap.count(curasm.adr) )
-				{
+				{	// asm deja vu a cette adresse
 				}
 			else	{
 				if	( stac[stac.size()-2].nam == string("line_asm_insn") )

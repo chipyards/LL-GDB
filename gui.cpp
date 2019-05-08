@@ -885,6 +885,8 @@ for	( int iopt = 1; iopt < argc; ++iopt )
 				break;
 			case 'm' : glo->option_manual_start = 1;
 				break;
+			case 'u' : glo->targ->option_unreach_path = 1;
+				break;
 			}
 		}
 	else	glo->targ->main_file_name = string( argv[iopt] );

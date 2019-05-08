@@ -59,7 +59,7 @@ unsigned int qbytes;	// number of bytes making the executable code
 int src0;		// first source line, or -1 if none
 int src1;		// last source line (inclusive)
 unsigned int isrc;	// index of file in filestock
-string asmsrc;		// disassembed intruction
+string asmsrc;		// disassembled intruction
 // methodes
 void init() {
 	adr = 0; qbytes = 0; src0 = -1;
@@ -153,10 +153,11 @@ map <string, unsigned int> filemap;
 vector <listing> liststock;
 map <unsigned long long, unsigned int> breakpoints;
 vector <memory> ramstock;
-int option_binvis;
-int option_ram_format;
+int option_binvis;		// store binary instruction code bytes
+int option_ram_format;		// 8, 16, 32, 64, 65(=ascii ;-)
+int option_unreach_path;	// include in listing the pathnames of unreachable src files
 // constructeur
-target() : job_status(0LL), job_just_finished(NOJOB), option_binvis(0) {
+target() : job_status(0LL), job_just_finished(NOJOB), option_binvis(0), option_ram_format(32), option_unreach_path(0) {
 	asm_init();
 	memory badram;		// avoir toujours au moins une RAM, meme vide
 	badram.adr0 = 0;

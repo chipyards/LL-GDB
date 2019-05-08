@@ -35,7 +35,9 @@ do	{
 	} while ( ia );
 // printf( "apres : " OPT_FMT "\n", (opt_type)adr ); fflush(stdout);
 // deuxieme étape : creer le listing from scratch
-int src0, srci;
+int src0;		// first source line number, or -1 if none
+int srci;		// current source line number
+unsigned int isrcf;	// index of src file in filestock
 asmline * daline;
 listing * curlist = &(liststock[ilist]);
 curlist->lines.clear();
@@ -54,9 +56,11 @@ while	( asmmap.count(adr) )
 	src0 = daline->src0;
 	if	( src0 >= 0 )
 		{
-		for	( srci = src0; srci <= daline->src1; ++srci )
+		isrcf = daline->isrc;
+		if	( ( filestock[isrcf].status > 0 ) || ( option_unreach_path ) )
 			{
-			curlist->lines.push_back( listing::encode_ref( daline->isrc, (unsigned int)srci ) );
+			for	( srci = src0; srci <= daline->src1; ++srci )
+				curlist->lines.push_back( listing::encode_ref( isrcf, (unsigned int)srci ) );
 			}
 		}
 	// completer listing avec la ligne asm
