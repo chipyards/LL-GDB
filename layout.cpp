@@ -71,6 +71,12 @@ gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 glo->itbk = curitem;
 gtk_widget_show ( curitem );
 
+curitem = gtk_menu_item_new_with_label("Set Breakpoint and Run");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( disa_call_bk_run ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
 curitem = gtk_menu_item_new_with_label("Kill All Breakpoints");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( disa_call_bk_all ), (gpointer)glo );

@@ -76,7 +76,6 @@ return (j)?(j-1):0;
 
 /** ============================ action functions ======================= */
 
-static void init_step( glostru * glo );
 static void update_disass( glostru * glo );
 
 void some_stats( glostru * glo )
@@ -123,7 +122,7 @@ glo->dad->send_cmd( cmd );
 glo->dad->send_cmd( "\n" );
 }
 
-void expa( glostru * glo )
+void disassembly_at( glostru * glo )
 {
 char buf[256];
 modpop_entry( "LL-GDB parameter", "Address for Disassembly", buf, sizeof(buf), GTK_WINDOW(glo->wmain) );
@@ -138,15 +137,28 @@ glo->disa_adr = adr;
 update_disass( glo );
 }
 
-void expb( glostru * glo )
+void breakpoint_at( glostru * glo )
 {
-some_stats( glo );
-glo->targ->job_status &= (~RUNNING_MASK);
+char buf[256];
+modpop_entry( "LL-GDB parameter", "Address for Breakpoint", buf, sizeof(buf), GTK_WINDOW(glo->wmain) );
+if	( buf[0] == 0 )
+	return;
+// glo->t.printf( "-->%s<--\n", buf );
+unsigned long long adr;
+adr = strtoull( buf, NULL, 16 );	// accepte 0x ou hex brut
+if	( adr == 0 )
+	return;
+const char * fmt = "-break-insert *0x" OPT_FMT;
+snprintf( buf, sizeof(buf), fmt, (opt_type)adr );
+queue_cmd( glo, buf, BreakSetKill );
+queue_cmd( glo, "-break-list", BreakList );
 }
 
-void expd( glostru * glo )
+void expe( glostru * glo )
 {
 // gasp("GAAAASp");
+some_stats( glo );
+glo->targ->job_status &= (~RUNNING_MASK);
 }
 
 // fonction a appeler chaque fois que ip a change (avec adr = 0)
@@ -210,14 +222,26 @@ else	{ // NON allons desassembler si possible
 	}
 }
 
+void update_RAM( glostru * glo )
+{
+if	( glo->targ->ramstock[0].adr0 > 0 )
+	{
+	char tbuf[128]; const char * fmt = "-data-read-memory-bytes 0x" OPT_FMT " %u";
+	snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)glo->targ->ramstock[0].adr0, glo->option_ramblock );
+	queue_cmd( glo, tbuf, RAMRead );
+	}
+}
+
 // cette fonction pretend assurer les etapes de demarrage
-static void init_step( glostru *glo )
+void init_step( glostru *glo, int autostart )
 {
 queue_cmd( glo, "-data-list-register-names", RegNames );
 if	( glo->option_child_console )
 	queue_cmd( glo, "-gdb-set new-console on", GDBSet );
 // send_cmd( glo, "-gdb-set mi-async on");	// marche PO sous windows
-queue_cmd( glo, "-exec-run --start", Run );	// ici GDB met un bk temporaire sur main
+if	( autostart )
+	queue_cmd( glo, "-exec-run --start", Run );	// ici GDB met un bk temporaire sur main
+else	queue_cmd( glo, "-exec-run", Run );		// il faut avoir mis un breakpoint
 queue_cmd( glo, "-data-list-register-values x", RegVal );
 // glo->targ->job_dump();
 }
@@ -466,6 +490,25 @@ if	( adr )
 	queue_cmd( glo, tbuf, BreakSetKill );
 	}
 queue_cmd( glo, "-break-list", BreakList );
+}
+
+void disa_call_bk_run( GtkWidget *widget, glostru * glo )
+{
+char tbuf[128];
+unsigned long long adr = glo->disa_sel_adr; // glo->disa_sel_adr a ete deja mis a jour par disa_right_call()
+if	( adr )
+	{
+	if	(!( glo->targ->is_break( adr ) ) )
+		{
+		const char * fmt = "-break-insert *0x" OPT_FMT;
+		snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)adr );
+		queue_cmd( glo, tbuf, BreakSetKill );
+		queue_cmd( glo, "-break-list", BreakList );
+		queue_cmd( glo, "-exec-continue", Continue );
+		queue_cmd( glo, "-data-list-register-values x", RegVal );
+		update_RAM( glo );
+		}
+	}
 }
 
 void disa_call_bk_all( GtkWidget *widget, glostru * glo )
@@ -939,7 +982,7 @@ if	( retval )
 if	( glo->option_manual_start == 0 )
 	{
 	if	( glo->targ->main_file_name.size() > 0 )
-		init_step( glo );
+		init_step( glo, 1 );
 	else	modpop( "Error", "No executable file name", GTK_WINDOW(glo->wmain) );
 	}
 gtk_entry_set_text( GTK_ENTRY(glo->enam), glo->targ->main_file_name.c_str() );

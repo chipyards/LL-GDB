@@ -1,1 +1,1 @@
-#define LL_VERSION "1.05"
+#define LL_VERSION "1.06"

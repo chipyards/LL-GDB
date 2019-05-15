@@ -125,9 +125,10 @@ int option_manual_start;	// breakpoints initiaux a mettre a la main
 /** fonctions d'action ---------------------------*/
 
 void queue_cmd( glostru * glo, const char * cmd, job_enum job );
-void expa( glostru * glo );
-void expb( glostru * glo );
-void expd( glostru * glo );
+void init_step( glostru *glo, int autostart );
+void disassembly_at( glostru * glo );
+void breakpoint_at( glostru * glo );
+void expe( glostru * glo );
 
 /** fonctions de layout ---------------------------*/
 
@@ -156,6 +157,7 @@ void reg_call_copy( GtkWidget *widget, glostru * glo );
 void reg_call_copy_all( GtkWidget *widget, glostru * glo );
 gboolean reg_right_call( GtkWidget *curwidg, GdkEventButton *event, glostru * glo );
 void disa_call_bk( GtkWidget *widget, glostru * glo );
+void disa_call_bk_run( GtkWidget *widget, glostru * glo );
 void disa_call_bk_all( GtkWidget *widget, glostru * glo );
 void disa_call_flavor( GtkWidget *widget, glostru * glo );
 void disa_call_binvis( GtkWidget *widget, glostru * glo );
@@ -196,6 +198,8 @@ void ram_data_call( GtkTreeViewColumn * tree_column,
                      GtkTreeModel      * tree_model,
                      GtkTreeIter       * iter,
                      glostru *         glo );
+// misc
+void update_RAM( glostru * glo );
 
 /** ============================ list store utilities ======================= */
 

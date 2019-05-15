@@ -28,7 +28,7 @@ static GtkActionEntry ui_entries[] = {
   // name,		stock id,  label
   { "FileMenu",		NULL, "_File" },
   { "RunMenu",		NULL, "_Run" },
-  { "ExpMenu",		NULL, "_Experiment" },
+  { "ManMenu",		NULL, "_Manual" },
   // name,		stock id,  label,		accel,		tooltip, callback
 //{ "fopn", 		NULL, "Open",			"<control>O",	NULL, G_CALLBACK(action_call) },
   { "fclr", 		NULL, "Clear Console",		"<control>K",	NULL, G_CALLBACK(action_call) },
@@ -39,11 +39,11 @@ static GtkActionEntry ui_entries[] = {
 			// windows bug here -->		F10 intercepted
   { "sv", 		NULL, "Step Over",  		"<shift>F11",	NULL, G_CALLBACK(action_call) },
   { "so", 		NULL, "Step Out",		"<control>F11",	NULL, G_CALLBACK(action_call) },
-  { "bmain", 		NULL, "Breakpoint to main",	"F9",		NULL, G_CALLBACK(action_call) },
-  { "bentry",	 	NULL, "Breakpoint to entry",	"<control>F9",	NULL, G_CALLBACK(action_call) },
-  { "expa",	 	NULL, "Disassemby at address",	"<control>A",	NULL, G_CALLBACK(action_call) },
-  { "expb",	 	NULL, "Exp B",			"<control>B",	NULL, G_CALLBACK(action_call) },
-  { "expd",	 	NULL, "Exp D",			"<control>D",	NULL, G_CALLBACK(action_call) },
+  { "mbm", 		NULL, "Breakpoint to main",	"<control>M",	NULL, G_CALLBACK(action_call) },
+  { "mst",	 	NULL, "Manual Start",		"<control>S",	NULL, G_CALLBACK(action_call) },
+  { "mab",	 	NULL, "Breakpoint at address",	"<control>B",	NULL, G_CALLBACK(action_call) },
+  { "mad",	 	NULL, "Disassemby at address",	"<control>D",	NULL, G_CALLBACK(action_call) },
+  { "mxe",	 	NULL, "Exp",			"<control>E",	NULL, G_CALLBACK(action_call) },
 };
 
 // le passage centralise pour toutes les actions
@@ -74,18 +74,14 @@ switch	( aname[0] )
 			case 'v' : queue_cmd( glo, "-exec-next-instruction", Continue );	break;
 			case 'o' : queue_cmd( glo, "-exec-finish", Continue );			break;
 			} get++; break;
-	case 'b' :			// break
-		switch	( aname[1] )
+	case 'm' :			// manual
+		switch	( aname[2] )
 			{
 			case 'm' : queue_cmd( glo, "-break-insert main", BreakSetKill );	break;
-			case 'e' : queue_cmd( glo, "-break-insert entry", BreakSetKill );	break;
-			} break;
-	case 'e' :			// experimental
-		switch	( aname[3] )
-			{
-			case 'a' : expa( glo ); break;
-			case 'b' : expb( glo ); break;
-			case 'd' : expd( glo ); break;
+			case 't' : init_step( glo, 0 ); break;		// "Manual Start"
+			case 'b' : breakpoint_at( glo ); break;		// "Breakpoint at address"
+			case 'd' : disassembly_at( glo ); break;	// "Disassemby at address"
+			case 'e' : expe( glo ); break;			// "Exp E"
 			} break;
 	default :
 		glo->t.printf("action %s\n", aname );
@@ -93,12 +89,7 @@ switch	( aname[0] )
 if	( get )
 	{
 	queue_cmd( glo, "-data-list-register-values x", RegVal );
-	if	( glo->targ->ramstock[0].adr0 > 0 )
-		{
-		char tbuf[128]; const char * fmt = "-data-read-memory-bytes 0x" OPT_FMT " %u";
-		snprintf( tbuf, sizeof(tbuf), fmt, (opt_type)glo->targ->ramstock[0].adr0, glo->option_ramblock );
-		queue_cmd( glo, tbuf, RAMRead );
-		}
+	update_RAM( glo );
 	}
 }
 
@@ -146,12 +137,12 @@ static const gchar * ui_xml =
 "      <menuitem action='sv'/>"
 "      <menuitem action='so'/>"
 "    </menu>"
-"    <menu action='ExpMenu'>"
-"      <menuitem action='bmain'/>"
-"      <menuitem action='bentry'/>"
-"      <menuitem action='expa'/>"
-"      <menuitem action='expb'/>"
-"      <menuitem action='expd'/>"
+"    <menu action='ManMenu'>"
+"      <menuitem action='mbm'/>"
+"      <menuitem action='mst'/>"
+"      <menuitem action='mab'/>"
+"      <menuitem action='mad'/>"
+"      <menuitem action='mxe'/>"
 "    </menu>"
 "  </menubar>"
 "</ui>";
