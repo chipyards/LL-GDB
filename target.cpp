@@ -6,6 +6,7 @@ using namespace std;
 #include <string.h>
 #include "arch_type.h"
 #include "target.h"
+#include "futf8.h"
 
 // remplir un listing a partir de l'adresse donnee, jusqu'a epuisement du disass
 // le contenu anterieur est ecrase
@@ -281,13 +282,27 @@ if	( fil == NULL )
 	}
 if	( fil )
 	{
-	char lbuf[256]; int pos;
+	char lbuf[256]; int pos, len;
 	while	( fgets( lbuf, sizeof( lbuf ), fil ) )	// aucune confiance dans ce fgets
 		{
 		lbuf[sizeof(lbuf)-1] = 0;		// il peut omettre le terminateur
-		pos = (int)strlen(lbuf) - 1;
+		len = (int)strlen(lbuf);
+		// on attaque par la fin pour enlever line end et trailing blank
+		pos = len - 1;
 		while	( ( pos >= 0 ) && ( lbuf[pos] <= ' ' ) ) // ou rendre une chaine vide
 			lbuf[pos--] = 0;			 // on enleve line end et trailing blank
+		// on attaque par le debut pour enlever UTF8 invalide qui plante GTK
+		// traitement caractere par caractere : filtrage sur place
+		char c; unsigned int i = 0, j = 0;
+		u8filtre filu;
+		while	( ( c = lbuf[i++] ) != 0 )
+			{
+			filu.putc( c );
+			while	( filu.avail() )
+				{ lbuf[j++] = filu.getc(); }
+			if	( j >= sizeof(lbuf) )
+				{ j = sizeof(lbuf) - 1; break; }
+			}
 		lines.push_back( string( lbuf ) );
 		}
 	fclose( fil );

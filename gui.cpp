@@ -529,6 +529,8 @@ else	{
 	gtk_tree_view_column_set_title( glo->asmcol, "Source Code (AT&T flavor)" );
 	queue_cmd( glo, "-gdb-set disassembly-flavor att", GDBSet );
 	}
+if	( glo->ilist < glo->targ->liststock.size() )	// sauvegarder l'adresse de debut, sinon ce serait seult ip
+	glo->disa_adr = glo->targ->liststock[glo->ilist].adr0;
 glo->targ->asm_init();	// effacer tout le disassembly
 update_disass( glo );
 }
@@ -543,6 +545,8 @@ if	( glo->targ->option_binvis )
 else	{
 	gtk_tree_view_column_set_visible( glo->bincol, FALSE );
 	}
+if	( glo->ilist < glo->targ->liststock.size() )	// sauvegarder l'adresse de debut, sinon ce serait seult ip
+	glo->disa_adr = glo->targ->liststock[glo->ilist].adr0;
 glo->targ->asm_init();	// effacer tout le disassembly car mi_parse tient compte de option_binvis
 update_disass( glo );// ce n'est pas seulement la visibilite des colonnes qui change
 }
