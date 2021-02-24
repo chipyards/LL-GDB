@@ -34,6 +34,7 @@ INCS= -mms-bitfields -Wno-deprecated-declarations\
 -I$(GTKBASE)/include/gdk-pixbuf-2.0 \
 -I$(GTKBASE)/include/glib-2.0 \
 -I$(GTKBASE)/include/gtk-2.0 \
+-I$(GTKBASE)/include/harfbuzz \
 -I$(GTKBASE)/include/pango-1.0 \
 -I$(GTKBASE)/lib/glib-2.0/include \
 -I$(GTKBASE)/lib/gtk-2.0/include \
